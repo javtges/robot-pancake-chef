@@ -1,0 +1,282 @@
+#!/usr/bin/env python
+"""
+Uses moveit to move robot arm with collision objects and a target for pickup
+
+SERVICES:
+    + /reset (Reset) ~ moves the robot to the home position and creates/moves a RealSense Box into the scene.
+                       Offers the ability to clear the waypoints server 
+    + /step (Step) ~ moves the robot to a user-specified position with a gripper state (open/closed). 
+                     If the motion plan succeeds, stores the waypoints in the parameter server
+    + /follow (Follow) ~ has the robot move to each waypoint in the parameter server, either once or indefinitely
+
+PARAMETERS:
+    + /waypoints ~ initially saved waypoints for robot to follow which can be cleared/appended to with the step 
+                   service
+
+"""
+
+import sys
+import rospy
+import moveit_commander
+from geometry_msgs.msg import PoseStamped
+from moveit_commander.conversions import pose_to_list, list_to_pose
+from fp_test.srv import Step #, Follow, FollowResponse, Reset, ResetResponse
+import actionlib
+from franka_gripper.msg import GraspGoal
+
+
+class Mover():
+    """ Moves interbotix arm with moveit planning and commands
+    """
+    def __init__(self):
+        super(Mover, self).__init__()
+        self.robot = moveit_commander.RobotCommander()
+        self.scene = moveit_commander.PlanningSceneInterface()
+        group_name = "panda_arm"
+        self.move_group = moveit_commander.MoveGroupCommander(group_name)
+        self.gripper_group = moveit_commander.MoveGroupCommander("hand")
+        self.planning_frame = self.move_group.get_planning_frame()
+        # self.waypoints = rospy.get_param("/waypoints")
+        # self.reset = rospy.Service("reset", Reset, self.reset_callback)
+        self.step = rospy.Service("step", Step, self.step_callback)
+        # self.follow = rospy.Service("follow", Follow, self.follow_callback)
+
+        # simple action client
+        # self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspGoal)
+
+        # self.add_table()
+        # self.add_airpod()     # use to add small collision object 
+    
+    def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
+        """ Waits until changes are reflected in object lists 
+
+        Ensures that collision updates are made in case the python node dies before publishing.
+        Integrated from Interbotix MoveIt Python Move Group Tutorials
+
+        Args: 
+            box_name (string) : name of the box being added 
+            box_is_known (bool) : if box is in get_known_object_names()
+            box_is_attached (bool) : if box is in get_attached_objects()
+            timeout (int) : time limit
+
+        Returns:
+            False (bool) : false return if the while loop is exited without returning (a timeout)
+        
+        """
+        start = rospy.get_time()
+        seconds = rospy.get_time()
+
+        while (seconds - start < timeout) and not rospy.is_shutdown():
+            attached_objects = self.scene.get_attached_objects([box_name])
+            is_attached = len(attached_objects.keys()) > 0
+
+            is_known = box_name in self.scene.get_known_object_names()
+
+            if (box_is_attached == is_attached) and (box_is_known == is_known):
+                return True
+
+            rospy.sleep(0.1)
+            seconds = rospy.get_time()
+
+        return False
+
+    # def add_table(self):
+    #     """ Adds table to planning scene 
+
+    #     Places table collision object based on the world frame
+
+    #     """
+    #     table_pose = PoseStamped()
+    #     table_pose.header.frame_id = "world"
+    #     table_pose.pose.position.x = 0.25
+    #     table_pose.pose.position.y = 0.0
+    #     table_pose.pose.position.z = -0.025
+    #     table_pose.pose.orientation.w = 1.0
+    #     table_name = "table"
+    #     while not self.wait_for_state_update(table_name, box_is_known=True):
+    #         self.scene.add_box(table_name, table_pose, size=(1.0, 0.62, 0.05))
+
+    # def add_airpod(self):
+    #     """ Adds small object to planning scene
+
+    #     Places an approximate airpod case sized collision object to the scene for viewing 
+    #     location of target object if desired
+        
+    #     """
+    #     airpod_pose = PoseStamped()
+    #     airpod_pose.header.frame_id = "world"
+    #     airpod_pose.pose.position.x = 0.27
+    #     airpod_pose.pose.position.y = 0.0
+    #     airpod_pose.pose.position.z = 0.0275
+    #     airpod_pose.pose.orientation.w = 1.0
+    #     airpod_name = "airpod"
+    #     while not self.wait_for_state_update(airpod_name, box_is_known=True):
+    #         self.scene.add_box(airpod_name, airpod_pose, size=(0.07, 0.03, 0.055))
+
+    # def add_realsense(self, pose):
+    #     """ Adds realsense to planning scene
+
+    #     Places realsense collision object in the planning scene 
+
+    #     Args:
+    #         pose (Pose) : pose data for location to place the object 
+    #     """
+    #     box_pose = PoseStamped(pose=pose)
+    #     box_pose.header.frame_id = "world"
+    #     box_name = "realsense_box"
+    #     while not self.wait_for_state_update(box_name, box_is_known=True):
+    #         self.scene.add_box(box_name, box_pose, size=(0.09, 0.14, 0.05))
+
+    # def reset_callback(self, data):
+    #     """ Callback for the reset service 
+
+    #     Calls the add_realsense function to add collision object based on user-input
+
+    #     Args:
+    #         data (Reset) : pose data from user input to send to add_realsense function
+
+    #     Returns:
+    #         ResetResponse (Reset) : empty response 
+        
+    #     """
+    #     self.add_realsense(data.pose)
+    #     self.move_group.set_named_target("Home")
+    #     self.move_group.go()
+    #     self.move_group.stop()
+    #     self.move_group.clear_pose_targets()
+
+    #     if data.clr_waypoints:
+    #         rospy.set_param('/waypoints', [])
+    #         self.waypoints = []
+        
+    #     return ResetResponse()
+    
+    def step_callback(self, data):
+        """ Callback for the step service 
+
+        Moves the robot based on user-input pose values
+
+        Args:
+            data (Step) : pose data from user input to use with moveit planning 
+
+        Returns:
+            error_code (Step) : MoveItErrorCodes message which signifies success or failure 
+
+        """
+
+        pose = data.pose
+        gripper = data.gripper
+
+        self.move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.move_group.plan()
+        if not success_flag:
+            return error_code
+
+        self.move_group.execute(trajectory_message, wait=True)
+        self.move_group.stop()
+        self.move_group.clear_pose_targets()
+
+        if gripper:
+            self.gripper_group.set_named_target("close")
+            # self.client.wait_for_server()
+            # goal = GraspGoal(0.0572, 0.001, 0.1, 1)
+            # self.client.send_goal(goal)
+            # self.client.wait_for_result()
+        else:
+            self.gripper_group.set_named_target("open")
+            # self.gripper_group.go()
+            # self.gripper_group.stop()
+            # self.gripper_group.clear_pose_targets()
+        self.gripper_group.go()
+        self.gripper_group.stop()
+        self.gripper_group.clear_pose_targets()
+
+        # self.waypoints.append([pose_to_list(pose), gripper])
+        # rospy.set_param("/waypoints", self.waypoints)
+
+        return error_code
+
+    '''
+    def step_callback(self, data):
+
+        pose = data.pose
+        gripper = data.gripper
+
+        self.move_group.set_pose_target(pose)
+        trajectory_message, fraction = self.move_group.compute_cartesian_path(pose, 0.01,0.01)
+        # if not success_flag:
+        #     return error_code
+
+        self.move_group.execute(trajectory_message, wait=True)
+        self.move_group.stop()
+        self.move_group.clear_pose_targets()
+
+        if gripper:
+            self.gripper_group.set_named_target("close")
+            # self.client.wait_for_server()
+            # goal = GraspGoal(0.0572, 0.001, 0.1, 1)
+            # self.client.send_goal(goal)
+            # self.client.wait_for_result()
+        else:
+            self.gripper_group.set_named_target("open")
+            # self.gripper_group.go()
+            # self.gripper_group.stop()
+            # self.gripper_group.clear_pose_targets()
+        self.gripper_group.go()
+        self.gripper_group.stop()
+        self.gripper_group.clear_pose_targets()
+
+        # self.waypoints.append([pose_to_list(pose), gripper])
+        # rospy.set_param("/waypoints", self.waypoints)
+
+        return fraction
+    '''
+
+    # def follow_callback(self, data):
+    #     """ Callback function for the follow service 
+
+    #     Moves the robot to follow waypoints in the parameter server
+
+    #     Args: 
+    #         data (Follow) : boolean user-input for repeating the cycle or running just once
+
+    #     Returns:
+    #         FollowResponse (Follow) : empty response
+        
+    #     """
+    #     data = data
+        
+    #     for waypoint in self.waypoints:
+    #         pose = list_to_pose(waypoint[0])
+    #         gripper = waypoint[1]
+    #         self.move_group.set_pose_target(pose)
+    #         success_flag, trajectory_message, planning_time, error_code = self.move_group.plan()
+    #         self.move_group.execute(trajectory_message, wait=True)
+    #         self.move_group.stop()
+    #         self.move_group.clear_pose_targets()
+
+    #         if gripper:
+    #             self.gripper_group.set_named_target("Closed")
+    #         else:
+    #             self.gripper_group.set_named_target("Open")
+    #         self.gripper_group.go()
+    #         self.gripper_group.stop()
+    #         self.gripper_group.clear_pose_targets()
+            
+    #     if data.repeat:
+    #         self.follow_callback(data)
+
+    #     return FollowResponse()
+        
+
+def main():
+    moveit_commander.roscpp_initialize(sys.argv)
+    rospy.init_node("mover", anonymous=True, log_level=rospy.DEBUG)
+    Mover()
+    rospy.spin()
+
+if __name__=="__main__":
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
