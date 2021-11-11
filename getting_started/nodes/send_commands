@@ -13,16 +13,20 @@ class main:
 
         self.robot_name = "panda_arm"
         self.robot_group = moveit_commander.MoveGroupCommander(self.robot_name)
-        # self.gripper_name = "franka_gripper"
-        # self.gripper_group = moveit_commander.MoveGroupCommander(self.gripper_name)
+        self.gripper_name = "hand"
+        self.gripper_group = moveit_commander.MoveGroupCommander(self.gripper_name)
 
         self.scene = moveit_commander.PlanningSceneInterface()
 
-        rospy.sleep(2)
+        rospy.sleep(5)
 
         self.go_to_extended()
 
-        self.go_to_random()
+        # self.go_to_random()
+
+        self.open_gripper()
+
+        self.close_gripper()
 
     def go_to_random(self):
         pose = geometry_msgs.msg.Pose()
@@ -42,6 +46,17 @@ class main:
         self.robot_group.go()
         self.robot_group.stop()
 
+    def close_gripper(self):
+
+        self.gripper_group.set_named_target('close')
+        self.gripper_group.go()
+        self.gripper_group.stop()
+
+    def open_gripper(self):
+
+        self.gripper_group.set_named_target('open')
+        self.gripper_group.go()
+        self.gripper_group.stop()
         
 if __name__ == '__main__':
     rospy.init_node('send_commands')
