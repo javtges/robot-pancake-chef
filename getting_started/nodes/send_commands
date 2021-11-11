@@ -3,6 +3,7 @@
 import sys
 import rospy
 import moveit_commander
+import geometry_msgs
 
 class main:
     
@@ -10,15 +11,37 @@ class main:
 
         moveit_commander.roscpp_initialize(sys.argv)
 
-        self.scene = moveit_commander.PlanningSceneInterface()
         self.robot_name = "panda_arm"
         self.robot_group = moveit_commander.MoveGroupCommander(self.robot_name)
-        self.gripper_name = "franka_gripper"
-        self.gripper_group = moveit_commander.MoveGroupCommander(self.gripper_name)
-        
+        # self.gripper_name = "franka_gripper"
+        # self.gripper_group = moveit_commander.MoveGroupCommander(self.gripper_name)
+
         self.scene = moveit_commander.PlanningSceneInterface()
 
         rospy.sleep(2)
+
+        self.go_to_extended()
+
+        self.go_to_random()
+
+    def go_to_random(self):
+        pose = geometry_msgs.msg.Pose()
+        pose.position.x = -0.0686
+        pose.position.y = 0.22654
+        pose.position.z = 1.0141
+        pose.orientation.x = -0.09
+        pose.orientation.y = 0.82774
+        pose.orientation.z = -0.059948
+        pose.orientation.w = 0.055058
+        self.robot_group.go(pose, wait="true")
+        self.robot_group.stop()
+
+    def go_to_extended(self):
+
+        self.robot_group.set_named_target('extended')
+        self.robot_group.go()
+        self.robot_group.stop()
+
         
 if __name__ == '__main__':
     rospy.init_node('send_commands')
