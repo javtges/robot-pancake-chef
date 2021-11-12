@@ -8,6 +8,7 @@ project(fp_test)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+    message_generation
     moveit_commander
     moveit_msgs
 )
@@ -69,6 +70,7 @@ add_service_files(
 generate_messages(
     DEPENDENCIES
     moveit_msgs
+    std_msgs
 )
 
 ################################################
@@ -102,8 +104,10 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
     CATKIN_DEPENDS
+    message_runtime
     moveit_commander
     moveit_msgs
+    
 )
 
 ###########

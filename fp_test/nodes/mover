@@ -21,8 +21,10 @@ import moveit_commander
 from geometry_msgs.msg import PoseStamped
 from moveit_commander.conversions import pose_to_list, list_to_pose
 from fp_test.srv import Step #, Follow, FollowResponse, Reset, ResetResponse
+from std_srvs.srv import Empty, EmptyResponse
 import actionlib
-from franka_gripper.msg import GraspGoal
+from franka_gripper.msg import GraspAction, GraspGoal, GraspEpsilon
+from rospy.core import logdebug
 
 
 class Mover():
@@ -33,18 +35,19 @@ class Mover():
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
         group_name = "panda_arm"
+        gripper_name = "hand"
         self.move_group = moveit_commander.MoveGroupCommander(group_name)
-        self.gripper_group = moveit_commander.MoveGroupCommander("hand")
+        self.gripper_group = moveit_commander.MoveGroupCommander(gripper_name)
         self.planning_frame = self.move_group.get_planning_frame()
-        # self.waypoints = rospy.get_param("/waypoints")
+        self.waypoints = rospy.get_param("/waypoints")
         # self.reset = rospy.Service("reset", Reset, self.reset_callback)
         self.step = rospy.Service("step", Step, self.step_callback)
-        # self.follow = rospy.Service("follow", Follow, self.follow_callback)
-
+        self.follow = rospy.Service("follow", Empty, self.follow_callback)
+        
         # simple action client
-        # self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspGoal)
+        self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
 
-        # self.add_table()
+        self.add_table()
         # self.add_airpod()     # use to add small collision object 
     
     def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
@@ -80,21 +83,21 @@ class Mover():
 
         return False
 
-    # def add_table(self):
-    #     """ Adds table to planning scene 
+    def add_table(self):
+        """ Adds table to planning scene 
 
-    #     Places table collision object based on the world frame
+        Places table collision object based on the world frame
 
-    #     """
-    #     table_pose = PoseStamped()
-    #     table_pose.header.frame_id = "world"
-    #     table_pose.pose.position.x = 0.25
-    #     table_pose.pose.position.y = 0.0
-    #     table_pose.pose.position.z = -0.025
-    #     table_pose.pose.orientation.w = 1.0
-    #     table_name = "table"
-    #     while not self.wait_for_state_update(table_name, box_is_known=True):
-    #         self.scene.add_box(table_name, table_pose, size=(1.0, 0.62, 0.05))
+        """
+        table_pose = PoseStamped()
+        table_pose.header.frame_id = "world"
+        table_pose.pose.position.x = 0.25
+        table_pose.pose.position.y = -0.50
+        table_pose.pose.position.z = -0.025
+        table_pose.pose.orientation.w = 1.0
+        table_name = "table"
+        while not self.wait_for_state_update(table_name, box_is_known=True):
+            self.scene.add_box(table_name, table_pose, size=(1.0, 0.62, 0.05))
 
     # def add_airpod(self):
     #     """ Adds small object to planning scene
@@ -166,7 +169,9 @@ class Mover():
 
         pose = data.pose
         gripper = data.gripper
-
+        rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+        velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+        logdebug(velocity)
         self.move_group.set_pose_target(pose)
         success_flag, trajectory_message, planning_time, error_code = self.move_group.plan()
         if not success_flag:
@@ -178,95 +183,84 @@ class Mover():
 
         if gripper:
             self.gripper_group.set_named_target("close")
-            # self.client.wait_for_server()
-            # goal = GraspGoal(0.0572, 0.001, 0.1, 1)
-            # self.client.send_goal(goal)
-            # self.client.wait_for_result()
+            logdebug("moving")
+            # self.grip()
+            self.gripper_group.go()
+            self.gripper_group.stop()
+            self.gripper_group.clear_pose_targets()
         else:
             self.gripper_group.set_named_target("open")
-            # self.gripper_group.go()
-            # self.gripper_group.stop()
-            # self.gripper_group.clear_pose_targets()
-        self.gripper_group.go()
-        self.gripper_group.stop()
-        self.gripper_group.clear_pose_targets()
+            self.gripper_group.go()
+            self.gripper_group.stop()
+            self.gripper_group.clear_pose_targets()
+        
 
         # self.waypoints.append([pose_to_list(pose), gripper])
         # rospy.set_param("/waypoints", self.waypoints)
-
+        rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
+        velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+        logdebug(velocity)
         return error_code
 
-    '''
-    def step_callback(self, data):
+    def grip (self):
+        # self.client.wait_for_server()
+        logdebug("working")
+        ep = GraspEpsilon(inner = 0.001, outer = 0.001)
+        action = GraspGoal()
+        action.width = 0.05
+        action.epsilon = ep
+        action.speed = 0.1
+        action.force = 10
+        self.client.send_goal(action)
+        logdebug("success")
+        self.client.wait_for_result(rospy.Duration(15.0))
+    
 
-        pose = data.pose
-        gripper = data.gripper
+    def follow_callback(self, event=None):
+        """ Callback function for the follow service 
 
-        self.move_group.set_pose_target(pose)
-        trajectory_message, fraction = self.move_group.compute_cartesian_path(pose, 0.01,0.01)
-        # if not success_flag:
-        #     return error_code
+        Moves the robot to follow waypoints in the parameter server
 
-        self.move_group.execute(trajectory_message, wait=True)
-        self.move_group.stop()
-        self.move_group.clear_pose_targets()
+        Args: 
+            data (Follow) : boolean user-input for repeating the cycle or running just once
 
-        if gripper:
-            self.gripper_group.set_named_target("close")
-            # self.client.wait_for_server()
-            # goal = GraspGoal(0.0572, 0.001, 0.1, 1)
-            # self.client.send_goal(goal)
-            # self.client.wait_for_result()
-        else:
-            self.gripper_group.set_named_target("open")
-            # self.gripper_group.go()
-            # self.gripper_group.stop()
-            # self.gripper_group.clear_pose_targets()
-        self.gripper_group.go()
-        self.gripper_group.stop()
-        self.gripper_group.clear_pose_targets()
-
-        # self.waypoints.append([pose_to_list(pose), gripper])
-        # rospy.set_param("/waypoints", self.waypoints)
-
-        return fraction
-    '''
-
-    # def follow_callback(self, data):
-    #     """ Callback function for the follow service 
-
-    #     Moves the robot to follow waypoints in the parameter server
-
-    #     Args: 
-    #         data (Follow) : boolean user-input for repeating the cycle or running just once
-
-    #     Returns:
-    #         FollowResponse (Follow) : empty response
+        Returns:
+            FollowResponse (Follow) : empty response
         
-    #     """
-    #     data = data
+        """
         
-    #     for waypoint in self.waypoints:
-    #         pose = list_to_pose(waypoint[0])
-    #         gripper = waypoint[1]
-    #         self.move_group.set_pose_target(pose)
-    #         success_flag, trajectory_message, planning_time, error_code = self.move_group.plan()
-    #         self.move_group.execute(trajectory_message, wait=True)
-    #         self.move_group.stop()
-    #         self.move_group.clear_pose_targets()
+        for waypoint in self.waypoints:
+            pose = list_to_pose(waypoint[0])
+            gripper = waypoint[1]
 
-    #         if gripper:
-    #             self.gripper_group.set_named_target("Closed")
-    #         else:
-    #             self.gripper_group.set_named_target("Open")
-    #         self.gripper_group.go()
-    #         self.gripper_group.stop()
-    #         self.gripper_group.clear_pose_targets()
-            
-    #     if data.repeat:
-    #         self.follow_callback(data)
+            rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+            velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+            logdebug(velocity)
 
-    #     return FollowResponse()
+            self.move_group.set_pose_target(pose)
+            success_flag, trajectory_message, planning_time, error_code = self.move_group.plan()
+            self.move_group.execute(trajectory_message, wait=True)
+            self.move_group.stop()
+            self.move_group.clear_pose_targets()
+
+            if gripper:
+                self.gripper_group.set_named_target("close")
+                logdebug("moving")
+                # self.grip()
+                self.gripper_group.go()
+                self.gripper_group.stop()
+                self.gripper_group.clear_pose_targets()
+            else:
+                self.gripper_group.set_named_target("open")
+                self.gripper_group.go()
+                self.gripper_group.stop()
+                self.gripper_group.clear_pose_targets()
+                
+            rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
+            velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+            logdebug(velocity)
+
+        return EmptyResponse()
         
 
 def main():

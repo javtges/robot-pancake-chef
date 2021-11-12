@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>fp_test</name>
-  <version>0.0.0</version>
+  <version>0.0.1</version>
   <description>The fp_test package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
@@ -51,6 +51,10 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>moveit_msgs</depend>
   <depend>moveit_commander</depend>
+  <depend>message_generation</depend>
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

@@ -76,4 +76,6 @@
    <!-- ns="$(arg robot_model)" -->
   </node>
 
+  <rosparam command="load" file="$(find fp_test)/config/waypoints.yaml"/>
+
 </launch>
