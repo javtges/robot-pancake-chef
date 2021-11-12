@@ -4,6 +4,11 @@ import sys
 import rospy
 import moveit_commander
 import geometry_msgs
+import std_msgs
+import actionlib
+import franka_gripper.msg 
+from franka_gripper.msg import GraspAction, GraspGoal, GraspActionGoal, GraspEpsilon
+from std_srvs.srv import Empty, EmptyResponse
 
 class main:
     
@@ -20,15 +25,22 @@ class main:
 
         rospy.sleep(5)
 
-        self.go_to_extended()
+        rospy.Service('random_pose',Empty,self.go_to_random)
+        rospy.Service('extend',Empty,self.go_to_extended)
+        rospy.Service('open_gripper',Empty,self.open_gripper)
+        rospy.Service('close_gripper',Empty,self.close_gripper)
 
-        # self.go_to_random()
+        grasp_action_client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
+        grasp_action_client.wait_for_server()
+        ep = GraspEpsilon(inner=.005,outer=.005)
+        action = GraspGoal()
+        action.width = .05
+        action.epsilon = ep
+        action.speed = .1
+        action.force = 20
+        grasp_action_client.send_goal(action)
 
-        self.open_gripper()
-
-        self.close_gripper()
-
-    def go_to_random(self):
+    def go_to_random(self,empty):
         pose = geometry_msgs.msg.Pose()
         pose.position.x = -0.0686
         pose.position.y = 0.22654
@@ -40,23 +52,31 @@ class main:
         self.robot_group.go(pose, wait="true")
         self.robot_group.stop()
 
-    def go_to_extended(self):
+        return []
+
+    def go_to_extended(self,empty):
 
         self.robot_group.set_named_target('extended')
         self.robot_group.go()
         self.robot_group.stop()
 
-    def close_gripper(self):
+        return []
+
+    def close_gripper(self,empty):
 
         self.gripper_group.set_named_target('close')
         self.gripper_group.go()
         self.gripper_group.stop()
 
-    def open_gripper(self):
+        return []
+
+    def open_gripper(self,empty):
 
         self.gripper_group.set_named_target('open')
         self.gripper_group.go()
         self.gripper_group.stop()
+
+        return []
         
 if __name__ == '__main__':
     rospy.init_node('send_commands')
