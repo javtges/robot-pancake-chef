@@ -29,16 +29,40 @@ class main:
         rospy.Service('extend',Empty,self.go_to_extended)
         rospy.Service('open_gripper',Empty,self.open_gripper)
         rospy.Service('close_gripper',Empty,self.close_gripper)
+        rospy.Service('grab_spatula',Empty,self.grab)
 
+    def grasp(self):
         grasp_action_client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
         grasp_action_client.wait_for_server()
         ep = GraspEpsilon(inner=.005,outer=.005)
         action = GraspGoal()
-        action.width = .05
+        action.width = .008
         action.epsilon = ep
         action.speed = .1
-        action.force = 20
+        action.force = 25
         grasp_action_client.send_goal(action)
+
+
+    def grab(self,empty):
+        
+        pose = geometry_msgs.msg.Pose()
+        pose.position.x = .31342
+        pose.position.y = -0.024123
+        pose.position.z = .11913
+        pose.orientation.x = .51011
+        pose.orientation.y = .85472
+        pose.orientation.z = -0.0122
+        pose.orientation.w = 0.09534
+        self.robot_group.go(pose, wait="true")
+        self.robot_group.stop()
+
+        print("Grasping")
+        self.grasp()
+
+        print("Back to home")
+        self.ready()
+
+        return []
 
     def go_to_random(self,empty):
         pose = geometry_msgs.msg.Pose()
@@ -62,11 +86,25 @@ class main:
 
         return []
 
-    def close_gripper(self,empty):
+    def go_to_ready(self,empty):
+        self.ready()
 
+        return []
+
+    def ready(self):
+
+        self.robot_group.set_named_target('ready')
+        self.robot_group.go()
+        self.robot_group.stop()
+
+    def close(self):
         self.gripper_group.set_named_target('close')
         self.gripper_group.go()
         self.gripper_group.stop()
+
+    def close_gripper(self,empty):
+
+        self.close()
 
         return []
 
