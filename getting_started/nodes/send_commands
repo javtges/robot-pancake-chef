@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import numpy as np
 import rospy
 import moveit_commander
 import geometry_msgs
@@ -30,21 +31,35 @@ class main:
         rospy.Service('open_gripper',Empty,self.open_gripper)
         rospy.Service('close_gripper',Empty,self.close_gripper)
         rospy.Service('grab_spatula',Empty,self.grab)
+        rospy.Service('spin',Empty,self.spin)
+
+        print('Services ready')
+
+    def spin(self,empty):
+
+        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
+        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': np.pi/4})
+        self.robot_group.go()
+        self.robot_group.stop()
+
+        return []
 
     def grasp(self):
-        grasp_action_client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
-        grasp_action_client.wait_for_server()
+        grasper = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
+        grasper.wait_for_server()
         ep = GraspEpsilon(inner=.005,outer=.005)
         action = GraspGoal()
         action.width = .008
         action.epsilon = ep
         action.speed = .1
         action.force = 25
-        grasp_action_client.send_goal(action)
+        grasper.send_goal(action)
 
 
     def grab(self,empty):
         
+        self.open()
+
         pose = geometry_msgs.msg.Pose()
         pose.position.x = .31342
         pose.position.y = -0.024123
@@ -108,11 +123,14 @@ class main:
 
         return []
 
-    def open_gripper(self,empty):
-
+    def open(self):
         self.gripper_group.set_named_target('open')
         self.gripper_group.go()
         self.gripper_group.stop()
+
+    def open_gripper(self,empty):
+
+        self.open()
 
         return []
         
