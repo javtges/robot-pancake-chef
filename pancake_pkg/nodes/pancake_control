@@ -237,7 +237,7 @@ class ManipulatorControl:
         self.robot_group.go()
         self.robot_group.stop()
 
-    def pour(self,empty):
+    def pour_callback(self,empty):
 
         self.open_gripper()
 
