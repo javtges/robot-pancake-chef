@@ -8,6 +8,7 @@
   <!-- Example:  -->
   <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
   <maintainer email="SarahZiselman2020@u.northwestern.edu">Sarah Ziselman</maintainer>
+  <maintainer email="andruliu20222@u.northwestern.edu">Andru Liu</maintainer>
 
 
   <!-- One license tag required, multiple allowed, one license per tag -->
@@ -49,15 +50,24 @@
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>franka_control</exec_depend>
+  <exec_depend>joint_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
   <build_depend>moveit_msgs</build_depend>
+  <build_depend>moveit_commander</build_depend>
+  <exec_depend>panda_moveit_config</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
   <build_depend>rospy</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_export_depend>moveit_msgs</build_export_depend>
+  <build_export_depend>moveit_commander</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
   <build_export_depend>std_msgs</build_export_depend>
-  <exec_depend>moveit_msgs</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

@@ -8,6 +8,7 @@ project(pancake_pkg)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  moveit_commander
   moveit_msgs
   rospy
   std_msgs
@@ -70,7 +71,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   moveit_msgs#   std_msgs
+#   moveit_msgs
+#   std_msgs
 # )
 
 ################################################
@@ -105,7 +107,12 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES pancake_pkg
- CATKIN_DEPENDS moveit_msgs rospy std_msgs
+    CATKIN_DEPENDS 
+    message_runtime
+    moveit_commander
+    moveit_msgs 
+    rospy 
+    std_msgs
 #  DEPENDS system_lib
 )
 
