@@ -26,8 +26,9 @@ class main:
 
         rospy.sleep(5)
 
-        rospy.Service('open_gripper',Empty,self.open_gripper)
-        rospy.Service('close_gripper',Empty,self.close_gripper)
+        self.grasper = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
+        self.grasper.wait_for_server()
+
         rospy.Service('pour',Empty,self.pour)
         print('Services ready')
 
@@ -49,58 +50,50 @@ class main:
         self.robot_group.stop()
 
         print("Grasping")
-        self.grasp()
+        self.sqeeze(.05,.005,.005,.1,25)
 
         print("Back to home")
         self.ready()
 
         print("Tipping")
-        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
-        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': -np.pi/2, 'panda_joint6': six, 'panda_joint7': seven})
-        self.robot_group.go()
-        self.robot_group.stop()
-        self.spin_joint7()
+        joint5 = -np.pi/2
+        joint7 = np.pi/2 + np.pi/4
+        self.tip(joint5)
+        self.spin(joint7)
 
         print("Squeezing")
-        self.squeeze()
+        self.squeeze(.04,.005,.005,.1,50)
 
         print("Back to home")
         self.ready()
 
         return []
     
-    def squeeze(self):
-        grasper = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
-        grasper.wait_for_server()
-        ep = GraspEpsilon(inner=.005,outer=.005)
+    def squeeze(self, width, epsilon_inner, epsilon_outer, speed, force):
+        ep = GraspEpsilon(inner=epsilon_inner,outer=epsilon_outer)
         action = GraspGoal()
-        action.width = .04
+        action.width = width
         action.epsilon = ep
-        action.speed = .1
-        action.force = 50
-        grasper.send_goal(action)
+        action.speed = speed
+        action.force = force
+        self.grasper.send_goal(action)
 
         rospy.sleep(3)
 
         self.grasp()
 
-    def spin_joint7(self):
-
+    def tip(self,joint5):
         one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
-        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': np.pi/2 + np.pi/4})
+        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': joint5, 'panda_joint6': six, 'panda_joint7': seven})
         self.robot_group.go()
         self.robot_group.stop()
 
-    def grasp(self):
-        grasper = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
-        grasper.wait_for_server()
-        ep = GraspEpsilon(inner=.005,outer=.005)
-        action = GraspGoal()
-        action.width = .05
-        action.epsilon = ep
-        action.speed = .1
-        action.force = 25
-        grasper.send_goal(action)
+    def spin(self,joint7):
+
+        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
+        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
+        self.robot_group.go()
+        self.robot_group.stop()
 
     def ready(self):
 
@@ -113,22 +106,10 @@ class main:
         self.gripper_group.go()
         self.gripper_group.stop()
 
-    def close_gripper(self,empty):
-
-        self.close()
-
-        return []
-
     def open(self):
         self.gripper_group.set_named_target('open')
         self.gripper_group.go()
         self.gripper_group.stop()
-
-    def open_gripper(self,empty):
-
-        self.open()
-
-        return []
         
 if __name__ == '__main__':
     rospy.init_node('send_commands')
