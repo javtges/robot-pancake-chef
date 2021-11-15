@@ -47,6 +47,7 @@ class ManipulatorControl:
         
         self.waypoints = rospy.get_param("/waypoints")
         self.flip = rospy.Service("flip", Empty, self.flip_callback)
+        self.pour = rospy.Service("pour",Empty,self.pour_callback)
 
         # simple action client
         self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
@@ -131,7 +132,12 @@ class ManipulatorControl:
         self.gripper_move_group.stop()
         self.gripper_move_group.clear_pose_targets()
 
-    
+    def go_to_ready(self):
+
+        self.arm_move_group.set_named_target('ready')
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
+
     def grasp(self, width, epsilon_inner, epsilon_outer, speed, force):
         """ Uses actions to close gripper 
 
@@ -218,6 +224,70 @@ class ManipulatorControl:
 
         return EmptyResponse()
 
+    def tip(self,joint5):
+        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
+        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': joint5, 'panda_joint6': six, 'panda_joint7': seven})
+        self.robot_group.go()
+        self.robot_group.stop()
+
+    def spin(self,joint7):
+
+        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
+        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
+        self.robot_group.go()
+        self.robot_group.stop()
+
+    def pour(self,empty):
+
+        self.open_gripper()
+
+        self.open_gripper()
+
+        pose = geometry_msgs.msg.Pose()
+        pose.position.x = .52304
+        pose.position.y = -0.04363
+        pose.position.z = .089752
+        pose.orientation.x = .58237
+        pose.orientation.y = .4014
+        pose.orientation.z = -0.40509
+        pose.orientation.w = 0.57934
+        self.arm_move_group.go(pose, wait="true")
+        self.arm_move_group.stop()
+
+        print("Grasping")
+        self.grasp(.06,.005,.005,.1,20)
+
+        print("Back to home")
+        self.go_to_ready()
+
+        print("Tipping")
+        joint5 = -np.pi/2
+        joint7 = np.pi/2 + np.pi/4
+        self.tip(joint5)
+        self.spin(joint7)
+
+        print("Squeezing")
+        self.grasp(.04,.005,.005,.1,50)
+
+        print("Return bottle")
+        self.spin(0)
+
+        pose = geometry_msgs.msg.Pose()
+        pose.position.x = .52304
+        pose.position.y = -0.04363
+        pose.position.z = .089752
+        pose.orientation.x = .58237
+        pose.orientation.y = .4014
+        pose.orientation.z = -0.40509
+        pose.orientation.w = 0.57934
+        self.arm_move_group.go(pose, wait="true")
+        self.arm_move_group.stop()
+
+        self.open_gripper()
+
+        self.go_to_ready()
+
+        return []
     
 def main():
     """
