@@ -9,6 +9,30 @@ class ManipulatorControl:
         # initialize moveit commander
         moveit_commander.roscpp_initialize(sys.argv)
 
+        # parameters
+
+        # pubs, subs, servs, etc.
+
+        # instantiate robot commander object
+        self.robot = moveit_commander.RobotCommander()
+
+        # instantiate scene object
+        self.scene = moveit_commander.PlanningSceneInterface()
+
+        # instantiate move groups
+        self.arm_move_group = moveit_commander.MoveGroupCommander('panda_arm')
+        self.gripper_move_group = moveit_commander.MoveGroupCommander('hand')
+    
+    def open_gripper(self):
+        self.gripper_move_group.set_named_target('open')
+        self.gripper_move_group.go()
+        self.gripper_move_group.stop()
+    
+    def close_gripper(self):
+        self.gripper_move_group.set_named_target('close')
+        self.gripper_move_group.go()
+        self.gripper_move_group.stop()
+
     
 def main():
     """
@@ -17,6 +41,7 @@ def main():
     rospy.init_node('manipulator')
     node = ManipulatorControl()
     rospy.spin()
+
 
 if __name__ == '__main__':
     try:
