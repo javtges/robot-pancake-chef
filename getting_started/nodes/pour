@@ -50,7 +50,7 @@ class main:
         self.robot_group.stop()
 
         print("Grasping")
-        self.sqeeze(.05,.005,.005,.1,25)
+        self.grasp(.06,.005,.005,.1,20)
 
         print("Back to home")
         self.ready()
@@ -62,14 +62,14 @@ class main:
         self.spin(joint7)
 
         print("Squeezing")
-        self.squeeze(.04,.005,.005,.1,50)
+        self.grasp(.04,.005,.005,.1,50)
 
         print("Back to home")
         self.ready()
 
         return []
     
-    def squeeze(self, width, epsilon_inner, epsilon_outer, speed, force):
+    def grasp(self, width, epsilon_inner, epsilon_outer, speed, force):
         ep = GraspEpsilon(inner=epsilon_inner,outer=epsilon_outer)
         action = GraspGoal()
         action.width = width
@@ -77,10 +77,6 @@ class main:
         action.speed = speed
         action.force = force
         self.grasper.send_goal(action)
-
-        rospy.sleep(3)
-
-        self.grasp()
 
     def tip(self,joint5):
         one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
