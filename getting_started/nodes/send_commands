@@ -30,44 +30,66 @@ class main:
         rospy.Service('extend',Empty,self.go_to_extended)
         rospy.Service('open_gripper',Empty,self.open_gripper)
         rospy.Service('close_gripper',Empty,self.close_gripper)
-        rospy.Service('grab_spatula',Empty,self.grab)
+        rospy.Service('grab_spatula',Empty,self.grab_spatula)
         rospy.Service('spin',Empty,self.spin)
-
+        rospy.Service('pour',Empty,self.pour)
         print('Services ready')
+
+    def squeeze(self):
+        grasper = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
+        grasper.wait_for_server()
+        ep = GraspEpsilon(inner=.005,outer=.005)
+        action = GraspGoal()
+        action.width = .04
+        action.epsilon = ep
+        action.speed = .1
+        action.force = 50
+        grasper.send_goal(action)
+
+        rospy.sleep(3)
+
+        self.grasp()
 
     def spin(self,empty):
 
-        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
-        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': np.pi/4})
-        self.robot_group.go()
-        self.robot_group.stop()
+        self.spin_joint7()
 
         return []
+
+    def spin_joint7(self):
+
+        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
+        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': np.pi/2 + np.pi/4})
+        self.robot_group.go()
+        self.robot_group.stop()
 
     def grasp(self):
         grasper = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
         grasper.wait_for_server()
         ep = GraspEpsilon(inner=.005,outer=.005)
         action = GraspGoal()
-        action.width = .008
+        # action.width = .008
+        # action.epsilon = ep
+        # action.speed = .1
+        # action.force = 25
+        action.width = .05
         action.epsilon = ep
         action.speed = .1
         action.force = 25
         grasper.send_goal(action)
 
-
-    def grab(self,empty):
+    def grab_spatula(self,empty):
         
         self.open()
 
         pose = geometry_msgs.msg.Pose()
-        pose.position.x = .31342
-        pose.position.y = -0.024123
-        pose.position.z = .11913
-        pose.orientation.x = .51011
-        pose.orientation.y = .85472
-        pose.orientation.z = -0.0122
-        pose.orientation.w = 0.09534
+        pose.position.x = .48792
+        pose.position.y = -0.069547
+        pose.position.z = .11123
+        pose.orientation.x = .375
+        pose.orientation.y = .60489
+        pose.orientation.z = -0.59559
+        pose.orientation.w = 0.37251
         self.robot_group.go(pose, wait="true")
         self.robot_group.stop()
 
@@ -79,15 +101,54 @@ class main:
 
         return []
 
+    def pour(self,empty):
+
+        self.open()
+
+        self.open()
+
+        pose = geometry_msgs.msg.Pose()
+        pose.position.x = .52304
+        pose.position.y = -0.04363
+        pose.position.z = .089752
+        pose.orientation.x = .58237
+        pose.orientation.y = .4014
+        pose.orientation.z = -0.40509
+        pose.orientation.w = 0.57934
+        self.robot_group.go(pose, wait="true")
+        self.robot_group.stop()
+
+        print("Grasping")
+        self.grasp()
+
+        print("Back to home")
+        self.ready()
+
+        print("Tipping")
+        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
+        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': -np.pi/2, 'panda_joint6': six, 'panda_joint7': seven})
+        self.robot_group.go()
+        self.robot_group.stop()
+        self.spin_joint7()
+
+        print("Squeezing")
+        self.squeeze()
+
+        print("Back to home")
+        self.ready()
+
+        return []
+
+
     def go_to_random(self,empty):
         pose = geometry_msgs.msg.Pose()
-        pose.position.x = -0.0686
-        pose.position.y = 0.22654
-        pose.position.z = 1.0141
-        pose.orientation.x = -0.09
-        pose.orientation.y = 0.82774
-        pose.orientation.z = -0.059948
-        pose.orientation.w = 0.055058
+        pose.position.x = .48328
+        pose.position.y = -0.03378
+        pose.position.z = .10935
+        pose.orientation.x = 0.61271
+        pose.orientation.y = 0.31407
+        pose.orientation.z = -0.31445
+        pose.orientation.w = 0.6535
         self.robot_group.go(pose, wait="true")
         self.robot_group.stop()
 
