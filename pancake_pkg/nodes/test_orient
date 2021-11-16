@@ -1,0 +1,117 @@
+#!/usr/bin/env python
+
+"""
+Orient to an Object
+
+SERVICES:
+    + /flip (Empty) ~ has the robot move to each waypoint and flip the pancake
+PARAMETERS:
+    + /waypoints ~ waypoints for the robot to follow depending on task
+
+"""
+import numpy as np
+import rospy
+import sys
+import moveit_commander
+import geometry_msgs
+from geometry_msgs.msg import PoseStamped
+from moveit_commander.conversions import pose_to_list, list_to_pose
+from std_srvs.srv import Empty, EmptyResponse
+import actionlib
+from franka_gripper.msg import GraspAction, GraspGoal, GraspEpsilon
+from rospy.core import logdebug
+from math import pi
+from tf_conversions import transformations
+import tf2_ros
+from nav_msgs.msg import Odometry
+
+class OrientRobot:
+    def __init__(self):
+        super(OrientRobot, self).__init__()
+        
+        self.object = rospy.get_param("/object") #assumes center of object
+        self.base = rospy.get_param("/base") #assumes center of base
+
+        # object dimensions
+        self.object_size = [.1, .08, .5] # this is something we could define for each object
+        self.pub = rospy.Publisher('base_object', Odometry, queue_size=10)
+        self.rate = rospy.Rate(100)
+
+
+    def plan_detected(self):
+        """ Takes position of the desired object and goes to it
+        Args: 
+            None
+        """
+
+        #static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+
+        #cam_base_tf = geometry_msgs.msg.TransformStamped()
+        #cam_base_tf.header.stamp = rospy.Time.now()
+        #cam_base_tf.header.frame_id = "camera"
+        #cam_base_tf.child_frame_id = "base"
+        #q1 = transformations.quaternion_about_axis(self.base[5], [0, 0, 1])
+        #cam_base_tf.transform.rotation = geometry_msgs.msg.Quaternion(*q1)
+        # Assign initial x, y, and z transforms between the world and odom frame to zero
+        #cam_base_tf.transform.translation.x = self.base[0]
+        #cam_base_tf.transform.translation.y = self.base[1]
+        #cam_base_tf.transform.translation.z = self.base[2]
+        # Send the transform
+        #static_broadcaster.sendTransform(cam_base_tf)	
+
+        broadcaster = tf2_ros.TransformBroadcaster()
+        while not rospy.is_shutdown():
+            tf_time = rospy.Time.now()
+            base_object_tf = geometry_msgs.msg.TransformStamped()
+            base_object_tf.header.stamp = tf_time
+            base_object_tf.header.frame_id = "base"
+            base_object_tf.child_frame_id = "object"
+            # Update x, y, and z positions
+            base_object_tf.transform.translation.x = self.object[0] - self.base[0]
+            base_object_tf.transform.translation.y = self.object[1] - self.base[1]
+            base_object_tf.transform.translation.z = self.object[2] - self.base[2]
+            # Quaternion of the angle about the z axis
+            q2 = transformations.quaternion_about_axis(self.object[5] - self.base[5], [0, 0, 1])
+            base_object_tf.transform.rotation = geometry_msgs.msg.Quaternion(*q2)
+            # Send the transform
+            broadcaster.sendTransform(base_object_tf)
+
+            # Publish pose information to the base_object topic
+            base_object_footprint = Odometry()
+            base_object_footprint.header.frame_id = "base"
+            base_object_footprint.child_frame_id = "object"
+            base_object_footprint.header.stamp = tf_time
+            # Set x, y, and z positions
+            base_object_footprint.pose.pose.position.x = self.object[0] - self.base[0]
+            base_object_footprint.pose.pose.position.y = self.object[1] - self.base[1]
+            base_object_footprint.pose.pose.position.z = self.object[2] - self.base[2]
+            # Set angular positions (quaternion)
+            base_object_footprint.pose.pose.orientation = geometry_msgs.msg.Quaternion(*q2)
+            # Set linear (x) and angular (z) velocities
+            base_object_footprint.twist.twist.linear.x = 0
+            base_object_footprint.twist.twist.linear.y = 0
+            base_object_footprint.twist.twist.linear.z = 0
+            base_object_footprint.twist.twist.angular.x = 0
+            base_object_footprint.twist.twist.angular.y = 0
+            base_object_footprint.twist.twist.angular.z = 0
+            # Publish to the odom topic		
+            self.pub.publish(base_object_footprint)
+            self.rate.sleep()
+
+
+    
+def main():
+    """
+    the main() function
+    """
+    rospy.init_node('test_orient', log_level=rospy.DEBUG)
+    node = OrientRobot()
+    node.plan_detected()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
