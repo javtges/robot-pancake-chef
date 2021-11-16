@@ -36,7 +36,7 @@ class ManipulatorControl:
         # pubs, subs, servs, etc.
 
         # instantiate robot commander object
-        self.robot = moveit_commander.RobotCommander()
+        #self.robot = moveit_commander.RobotCommander()
 
         # instantiate scene object
         self.scene = moveit_commander.PlanningSceneInterface()
@@ -195,13 +195,13 @@ class ManipulatorControl:
         """
         i = 0
         # if using rpy then euleur to quaternion will give exact movement without offset
-        self.open_gripper()
 
         for waypoint in self.waypoints:
             pose = list_to_pose(waypoint[0])
             gripper = waypoint[1]
 
             rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+            rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",1.0)
             velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
             logdebug(velocity)
 
@@ -213,8 +213,13 @@ class ManipulatorControl:
             self.arm_move_group.clear_pose_targets()
 
             if gripper:
-                self.close_gripper()
-                # self.grasp(width=0.05, epsilon_inner=0.001, epsilon_outer=0.001, speed=0.1, force=10)
+                #self.close_gripper()
+                width = .005
+                epsilon_inner = .0025
+                epsilon_outer = .0025
+                speed = .1
+                force = 50
+                self.grasp(width, epsilon_inner, epsilon_outer, speed, force)
             else:
                 self.open_gripper()
 
@@ -222,6 +227,7 @@ class ManipulatorControl:
                 self.flip_spatula()
             i += 1
             rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
+            rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",0.1)
             velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
             logdebug(velocity)
 
@@ -244,8 +250,6 @@ class ManipulatorControl:
 
         self.open_gripper()
 
-        self.open_gripper()
-
         pose = geometry_msgs.msg.Pose()
         pose.position.x = .52046
         pose.position.y = -0.0632885
@@ -264,8 +268,8 @@ class ManipulatorControl:
         self.go_to_ready()
 
         print("Tipping")
-        joint5 = -np.pi/2
-        joint7 = np.pi/2 + np.pi/4
+        joint5 = -pi/2
+        joint7 = pi/2 + pi/4
         self.tip(joint5)
         self.spin(joint7)
 
