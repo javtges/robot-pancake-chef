@@ -70,9 +70,6 @@ class ImageProcessing:
         result = rs.rs2_deproject_pixel_to_point(intr, [x,y], depth_image[y,x])
         return result        
 
-
-        
-    
     #Convert the depth image to a Numpy array
 
 if __name__ == '__main__':
