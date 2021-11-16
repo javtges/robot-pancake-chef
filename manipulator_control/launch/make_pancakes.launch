@@ -1,5 +1,0 @@
-<launch>
-    <include file="$(find panda_moveit_config)/launch/panda_moveit.launch"/>
-    
-    <node name="manipulator_control" pkg="manipulator_control" type="manipulator_control" output="screen"/>
-</launch>
