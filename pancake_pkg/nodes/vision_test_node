@@ -5,6 +5,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image, CompressedImage
 import numpy as np
 import cv2
+import pyrealsense2 as rs
 
 
 
@@ -31,24 +32,45 @@ class ImageProcessing:
             depth_image = bridge.imgmsg_to_cv2(ros_image)
             depth_array = np.array(depth_image, dtype=np.float32)
             rospy.logerr(depth_array[240][424])
-            self.show_video(depth_image)
-
+            #self.show_video(depth_image)
+            result = self.get_xyz_from_image(depth_image, 424, 240)
+            rospy.logerr(result)
 
         except CvBridgeError:
             print(CvBridgeError())
             rospy.logerr("bad")
 
+    
 
     def convert_color_image(self,ros_image):
         bridge = CvBridge()
         try:
             color_image = bridge.imgmsg_to_cv2(ros_image)
+            color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
             color_array = np.array(color_image, dtype=np.float32)
+            color_image = cv2.circle(color_image,(424,240), 4, (255,0,0), 4)
             self.show_video(color_image)
 
         except CvBridgeError:
             print(CvBridgeError())
             rospy.logerr("bad")
+
+
+    def get_xyz_from_image(self,depth_image, x,y):
+        intr = rs.intrinsics()
+        intr.width = 1280
+        intr.height = 720
+        intr.ppx = 651.0391845703125
+        intr.ppy = 354.0467834472656
+        intr.fx = 921.5665283203125
+        intr.fy = 921.62841796875
+        intr.model = rs.distortion.none #"plumb_bob"
+        intr.coeffs = [0.0, 0.0, 0.0, 0.0, 0.0]
+
+        result = rs.rs2_deproject_pixel_to_point(intr, [x,y], depth_image[y,x])
+        return result        
+
+
         
     
     #Convert the depth image to a Numpy array
