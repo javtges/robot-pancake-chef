@@ -14,6 +14,7 @@ PARAMETERS:
 import rospy
 import sys
 import moveit_commander
+import geometry_msgs
 from geometry_msgs.msg import PoseStamped
 from moveit_commander.conversions import pose_to_list, list_to_pose
 from std_srvs.srv import Empty, EmptyResponse
@@ -21,6 +22,7 @@ import actionlib
 from franka_gripper.msg import GraspAction, GraspGoal, GraspEpsilon
 from rospy.core import logdebug
 from math import pi
+import numpy as np
 
 class ManipulatorControl:
     def __init__(self):
@@ -203,6 +205,7 @@ class ManipulatorControl:
             velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
             logdebug(velocity)
 
+            # pose: x=1, y=0, z=0, w=0
             self.arm_move_group.set_pose_target(pose)
             success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
             self.arm_move_group.execute(trajectory_message, wait=True)
@@ -225,17 +228,17 @@ class ManipulatorControl:
         return EmptyResponse()
 
     def tip(self,joint5):
-        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
-        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': joint5, 'panda_joint6': six, 'panda_joint7': seven})
-        self.robot_group.go()
-        self.robot_group.stop()
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': joint5, 'panda_joint6': six, 'panda_joint7': seven})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
 
     def spin(self,joint7):
 
-        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
-        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
-        self.robot_group.go()
-        self.robot_group.stop()
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
 
     def pour_callback(self,empty):
 
@@ -244,13 +247,13 @@ class ManipulatorControl:
         self.open_gripper()
 
         pose = geometry_msgs.msg.Pose()
-        pose.position.x = .52304
-        pose.position.y = -0.04363
-        pose.position.z = .089752
-        pose.orientation.x = .58237
-        pose.orientation.y = .4014
-        pose.orientation.z = -0.40509
-        pose.orientation.w = 0.57934
+        pose.position.x = .52046
+        pose.position.y = -0.0632885
+        pose.position.z = .102206
+        pose.orientation.x = 0.629614
+        pose.orientation.y = .28868
+        pose.orientation.z = -0.348472
+        pose.orientation.w = 0.631521
         self.arm_move_group.go(pose, wait="true")
         self.arm_move_group.stop()
 
@@ -273,13 +276,13 @@ class ManipulatorControl:
         self.spin(0)
 
         pose = geometry_msgs.msg.Pose()
-        pose.position.x = .52304
-        pose.position.y = -0.04363
-        pose.position.z = .089752
-        pose.orientation.x = .58237
-        pose.orientation.y = .4014
-        pose.orientation.z = -0.40509
-        pose.orientation.w = 0.57934
+        pose.position.x = .52046
+        pose.position.y = -0.0632885
+        pose.position.z = .102206
+        pose.orientation.x = 0.629614
+        pose.orientation.y = .28868
+        pose.orientation.z = -0.348472
+        pose.orientation.w = 0.631521
         self.arm_move_group.go(pose, wait="true")
         self.arm_move_group.stop()
 
