@@ -14,6 +14,7 @@ PARAMETERS:
 import rospy
 import sys
 import moveit_commander
+import geometry_msgs
 from geometry_msgs.msg import PoseStamped
 from moveit_commander.conversions import pose_to_list, list_to_pose
 from std_srvs.srv import Empty, EmptyResponse
@@ -34,7 +35,7 @@ class ManipulatorControl:
         # pubs, subs, servs, etc.
 
         # instantiate robot commander object
-        self.robot = moveit_commander.RobotCommander()
+        #self.robot = moveit_commander.RobotCommander()
 
         # instantiate scene object
         self.scene = moveit_commander.PlanningSceneInterface()
@@ -193,13 +194,13 @@ class ManipulatorControl:
         """
         i = 0
         # if using rpy then euleur to quaternion will give exact movement without offset
-        self.open_gripper()
 
         for waypoint in self.waypoints:
             pose = list_to_pose(waypoint[0])
             gripper = waypoint[1]
 
             rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+            rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",1.0)
             velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
             logdebug(velocity)
 
@@ -210,8 +211,13 @@ class ManipulatorControl:
             self.arm_move_group.clear_pose_targets()
 
             if gripper:
-                self.close_gripper()
-                # self.grasp(width=0.05, epsilon_inner=0.001, epsilon_outer=0.001, speed=0.1, force=10)
+                #self.close_gripper()
+                width = .005
+                epsilon_inner = .0025
+                epsilon_outer = .0025
+                speed = .1
+                force = 50
+                self.grasp(width, epsilon_inner, epsilon_outer, speed, force)
             else:
                 self.open_gripper()
 
@@ -219,38 +225,37 @@ class ManipulatorControl:
                 self.flip_spatula()
             i += 1
             rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
+            rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",0.1)
             velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
             logdebug(velocity)
 
         return EmptyResponse()
 
     def tip(self,joint5):
-        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
-        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': joint5, 'panda_joint6': six, 'panda_joint7': seven})
-        self.robot_group.go()
-        self.robot_group.stop()
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': joint5, 'panda_joint6': six, 'panda_joint7': seven})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
 
     def spin(self,joint7):
 
-        one, two, three, four, five, six, seven = self.robot_group.get_current_joint_values()
-        self.robot_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
-        self.robot_group.go()
-        self.robot_group.stop()
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
 
     def pour_callback(self,empty):
 
         self.open_gripper()
 
-        self.open_gripper()
-
         pose = geometry_msgs.msg.Pose()
-        pose.position.x = .52304
-        pose.position.y = -0.04363
-        pose.position.z = .089752
-        pose.orientation.x = .58237
-        pose.orientation.y = .4014
-        pose.orientation.z = -0.40509
-        pose.orientation.w = 0.57934
+        pose.position.x = .51498
+        pose.position.y = -0.060034
+        pose.position.z = .14269
+        pose.orientation.x = .57543
+        pose.orientation.y = .46472
+        pose.orientation.z = -0.52486
+        pose.orientation.w = 0.42123
         self.arm_move_group.go(pose, wait="true")
         self.arm_move_group.stop()
 
@@ -261,8 +266,8 @@ class ManipulatorControl:
         self.go_to_ready()
 
         print("Tipping")
-        joint5 = -np.pi/2
-        joint7 = np.pi/2 + np.pi/4
+        joint5 = -pi/2
+        joint7 = pi/2 + pi/4
         self.tip(joint5)
         self.spin(joint7)
 
@@ -273,13 +278,13 @@ class ManipulatorControl:
         self.spin(0)
 
         pose = geometry_msgs.msg.Pose()
-        pose.position.x = .52304
-        pose.position.y = -0.04363
-        pose.position.z = .089752
-        pose.orientation.x = .58237
-        pose.orientation.y = .4014
-        pose.orientation.z = -0.40509
-        pose.orientation.w = 0.57934
+        pose.position.x = .51498
+        pose.position.y = -0.060034
+        pose.position.z = .14269
+        pose.orientation.x = .57543
+        pose.orientation.y = .46472
+        pose.orientation.z = -0.52486
+        pose.orientation.w = 0.42123
         self.arm_move_group.go(pose, wait="true")
         self.arm_move_group.stop()
 
