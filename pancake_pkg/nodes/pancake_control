@@ -88,6 +88,22 @@ class ManipulatorControl:
 
         return False
 
+    def get_pose(self,object):
+
+        if object == 'bottle':
+            
+            x_transformed = .52304
+            y_transformed = -0.04363
+            z_tranformed = .089752
+
+            pose = [x_transformed,y_transformed,z_tranformed,.58237,.4014,-0.40509,0.57934]
+
+            return pose
+        
+        if object == 'spatula':
+
+        if object == 'pancake':
+
     def add_table(self):
         """ Adds worktable to planning scene
 
@@ -243,16 +259,23 @@ class ManipulatorControl:
 
         self.open_gripper()
 
-        pose = geometry_msgs.msg.Pose()
-        pose.position.x = .52304
-        pose.position.y = -0.04363
-        pose.position.z = .089752
-        pose.orientation.x = .58237
-        pose.orientation.y = .4014
-        pose.orientation.z = -0.40509
-        pose.orientation.w = 0.57934
-        self.arm_move_group.go(pose, wait="true")
+        # pose = geometry_msgs.msg.Pose()
+        # pose.position.x = .52304
+        # pose.position.y = -0.04363
+        # pose.position.z = .089752
+        # pose.orientation.x = .58237
+        # pose.orientation.y = .4014
+        # pose.orientation.z = -0.40509
+        # pose.orientation.w = 0.57934
+        # self.arm_move_group.go(pose, wait="true")
+        # self.arm_move_group.stop()
+
+        pose = self.get_pose('bottle')
+        self.arm_move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        self.arm_move_group.execute(trajectory_message, wait=True)
         self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
 
         print("Grasping")
         self.grasp(.06,.005,.005,.1,20)
@@ -272,16 +295,23 @@ class ManipulatorControl:
         print("Return bottle")
         self.spin(0)
 
-        pose = geometry_msgs.msg.Pose()
-        pose.position.x = .52304
-        pose.position.y = -0.04363
-        pose.position.z = .089752
-        pose.orientation.x = .58237
-        pose.orientation.y = .4014
-        pose.orientation.z = -0.40509
-        pose.orientation.w = 0.57934
-        self.arm_move_group.go(pose, wait="true")
+        # pose = geometry_msgs.msg.Pose()
+        # pose.position.x = .52304
+        # pose.position.y = -0.04363
+        # pose.position.z = .089752
+        # pose.orientation.x = .58237
+        # pose.orientation.y = .4014
+        # pose.orientation.z = -0.40509
+        # pose.orientation.w = 0.57934
+        # self.arm_move_group.go(pose, wait="true")
+        # self.arm_move_group.stop()
+
+        pose = self.get_pose('bottle')
+        self.arm_move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        self.arm_move_group.execute(trajectory_message, wait=True)
         self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
 
         self.open_gripper()
 
