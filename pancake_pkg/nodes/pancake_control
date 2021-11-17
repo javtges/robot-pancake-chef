@@ -90,8 +90,11 @@ class ManipulatorControl:
 
     def get_pose(self,object):
 
+        #Pull camera x, y, and z values from parameter server
+        #Transform x, y, and z values from the camera frame to the robot frame 
+
         if object == 'bottle':
-            
+
             x_transformed = .52304
             y_transformed = -0.04363
             z_tranformed = .089752
