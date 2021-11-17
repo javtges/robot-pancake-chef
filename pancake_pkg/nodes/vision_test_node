@@ -47,7 +47,6 @@ class ImageProcessing:
             grayscale_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
             # color_image = cv2.circle(color_image,(424,240), 4, (255,0,0), 4)
             
-
             low_black = np.array([0,0,0])
             high_black = np.array([180,255,50])
 
@@ -83,7 +82,7 @@ class ImageProcessing:
             result = self.get_xyz_from_image(self.depth_image, cx, cy)
             rospy.logerr(result)
 
-
+            rospy.set_param("/bottle_location", result)
 
             self.show_video(rgb_image)
 
