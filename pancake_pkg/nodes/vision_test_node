@@ -41,11 +41,21 @@ class ImageProcessing:
     def convert_color_image(self,ros_image):
         bridge = CvBridge()
         try:
-            bgr_image = bridge.imgmsg_to_cv2(ros_image)
-            hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
-            rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
-            grayscale_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
-            # color_image = cv2.circle(color_image,(424,240), 4, (255,0,0), 4)
+            self.bgr_image = bridge.imgmsg_to_cv2(ros_image)
+            self.hsv_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2HSV)
+            self.rgb_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2RGB)
+            self.grayscale_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2GRAY)
+
+            self.find_bottle_location()
+
+            self.show_video(self.rgb_image)
+
+        except CvBridgeError:
+            print(CvBridgeError())
+            rospy.logerr("bad")
+
+    def find_bottle_location(self):
+                    # color_image = cv2.circle(color_image,(424,240), 4, (255,0,0), 4)
             
             low_black = np.array([0,0,0])
             high_black = np.array([180,255,50])
@@ -56,9 +66,9 @@ class ImageProcessing:
             # split_image = cv2.split(masked_image)
             # masked_gray = split_image[2]
 
-            hsv_split = cv2.split(hsv_image)[2]
+            hsv_split = cv2.split(self.hsv_image)[2]
             # rospy.logdebug(np.amin(hsv_split))
-            ret, thresh = cv2.threshold(grayscale_image, 35,255, cv2.THRESH_BINARY_INV)
+            ret, thresh = cv2.threshold(self.grayscale_image, 35,255, cv2.THRESH_BINARY_INV)
 
             #ret, thresh = cv2.threshold(masked_gray, 127, 255, 0)
 
@@ -71,24 +81,18 @@ class ImageProcessing:
             cnt=contours[max_index]
 
             x,y,w,h = cv2.boundingRect(cnt)
-            cv2.rectangle(rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
+            cv2.rectangle(self.rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
 
             M = cv2.moments(cnt)
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
 
-            cv2.circle(rgb_image, (cx,cy), 4, (255,0,0), 3)
+            cv2.circle(self.rgb_image, (cx,cy), 4, (255,0,0), 3)
 
             result = self.get_xyz_from_image(self.depth_image, cx, cy)
             rospy.logerr(result)
 
             rospy.set_param("/bottle_location", result)
-
-            self.show_video(rgb_image)
-
-        except CvBridgeError:
-            print(CvBridgeError())
-            rospy.logerr("bad")
 
 
     def get_xyz_from_image(self,depth_image, x,y):
