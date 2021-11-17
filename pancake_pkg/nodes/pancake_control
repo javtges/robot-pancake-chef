@@ -200,10 +200,12 @@ class ManipulatorControl:
             pose = list_to_pose(waypoint[0])
             gripper = waypoint[1]
 
-            rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
-            rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",1.0)
-            velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
-            logdebug(velocity)
+            # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+            # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",1.0)
+            # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+            # logdebug(velocity)
+
+            self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
             # pose: x=1, y=0, z=0, w=0
             self.arm_move_group.set_pose_target(pose)
@@ -226,10 +228,10 @@ class ManipulatorControl:
             if i == 2:
                 self.flip_spatula()
             i += 1
-            rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
-            rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",0.1)
-            velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
-            logdebug(velocity)
+            # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
+            # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",0.1)
+            # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+            # logdebug(velocity)
 
         return EmptyResponse()
 
