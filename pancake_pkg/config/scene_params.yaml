@@ -3,3 +3,6 @@ work_table_dims: [1.0, 0.62, 0.05]
 
 base_table_pose: [0.0, 0.1, -0.025]
 base_table_dims: [0.5, 0.62, 0.05]
+
+pancake_radius: 0.0762
+pancake_thickness: 0.006
