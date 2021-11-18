@@ -300,8 +300,12 @@ class ManipulatorControl:
 
         Returns:
             EmptyResponse (Empty) : empty response
-
         """
+
+        self.open_gripper()
+        
+        return EmptyResponse()
+
 
         
 def main():
