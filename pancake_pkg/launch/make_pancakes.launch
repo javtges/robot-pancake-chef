@@ -48,8 +48,10 @@
 
     <!-- yaml files go here -->
     <rosparam command="load" file="$(find pancake_pkg)/config/waypoints.yaml"/>
-    <rosparam command="load" file="$(find pancake_pkg)/config/object_poses.yaml"/>
     <rosparam command="load" file="$(find pancake_pkg)/config/scene_params.yaml"/>
+    <rosparam command="load" file="$(find pancake_pkg)/config/camera.yaml"/>
+    <rosparam command="load" file="$(find pancake_pkg)/config/pancake_tags.yaml"/>
+    <rosparam command="load" file="$(find pancake_pkg)/config/pancake_tag_settings.yaml"/>
     
     <!-- team-written nodes to launch go here -->
     <node name="pancake_control" pkg="pancake_pkg" type="pancake_control" output="screen"/>
