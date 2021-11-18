@@ -1,11 +1,14 @@
 <launch>
 
-    <!-- <arg name = "align_depth" default="true"/> -->
-
-
-    <!-- <include file="$(find realsense2_camera)/launch/demo_pointcloud.launch" pass_all_args="true"/> -->
     <include file="$(find realsense2_camera)/launch/rs_camera.launch" pass_all_args="true">
             <arg name = "align_depth" value="true"/>
+    </include>
+
+    <include file="$(find apriltag_ros)/launch/continuous_detection.launch" pass_all_args="true">
+            <arg name = "publish_tfs" value="true"/>
+            <arg name = "camera_frame" value="camera_color_optical_frame"/>
+            <arg name = "camera_name" value="camera_color"/>
+            <arg name = "image_topic" value="image_raw"/>
     </include>
 
 </launch>

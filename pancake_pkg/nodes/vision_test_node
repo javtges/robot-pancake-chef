@@ -54,27 +54,13 @@ class ImageProcessing:
             print(CvBridgeError())
             rospy.logerr("bad")
 
-    def find_bottle_location(self):
-                    # color_image = cv2.circle(color_image,(424,240), 4, (255,0,0), 4)
-            
-            low_black = np.array([0,0,0])
-            high_black = np.array([180,255,50])
+    def find_bottle_location(self):            
 
-            # colorMask_Black = cv2.inRange(hsv_image, low_black, high_black)
-            # masked_image = cv2.bitwise_and(hsv_image, hsv_image, colorMask_Black)
-
-            # split_image = cv2.split(masked_image)
-            # masked_gray = split_image[2]
-
-            hsv_split = cv2.split(self.hsv_image)[2]
-            # rospy.logdebug(np.amin(hsv_split))
             ret, thresh = cv2.threshold(self.grayscale_image, 35,255, cv2.THRESH_BINARY_INV)
-
-            #ret, thresh = cv2.threshold(masked_gray, 127, 255, 0)
 
             contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-            rospy.logdebug(len(contours))
+            # rospy.logdebug(len(contours))
 
             areas = [cv2.contourArea(c) for c in contours]
             max_index = np.argmax(areas)
@@ -90,7 +76,7 @@ class ImageProcessing:
             cv2.circle(self.rgb_image, (cx,cy), 4, (255,0,0), 3)
 
             result = self.get_xyz_from_image(self.depth_image, cx, cy)
-            rospy.logerr(result)
+            # rospy.logerr(result)
 
             rospy.set_param("/bottle_location", result)
 
