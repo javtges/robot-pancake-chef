@@ -15,7 +15,6 @@ import numpy as np
 import rospy
 import sys
 import moveit_commander
-import geometry_msgs
 from geometry_msgs.msg import PoseStamped, Pose
 from moveit_commander.conversions import pose_to_list, list_to_pose
 from std_srvs.srv import Empty, EmptyResponse
@@ -24,17 +23,34 @@ from franka_gripper.msg import GraspAction, GraspGoal, GraspEpsilon
 from rospy.core import logdebug
 from math import pi
 import numpy as np
+from visualization_msgs.msg import MarkerArray, Marker
+from geometry_msgs.msg import Vector3
 
 class ManipulatorControl:
     def __init__(self):
         super(ManipulatorControl, self).__init__()
+
         # initialize moveit commander
         moveit_commander.roscpp_initialize(sys.argv)
         
-
         # parameters
+        self.waypoints = rospy.get_param("/waypoints")
+        self.pancake = rospy.get_param("/pancake_location") #position of pancake in camera frame
+        self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
+        self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
+        self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
+
+        self.work_table_pose = rospy.get_param("work_table_pose")
+        self.work_table_dims = rospy.get_param("work_table_dims")
+        self.base_table_pose = rospy.get_param("base_table_pose")
+        self.base_table_dims = rospy.get_param("base_table_dims")
 
         # pubs, subs, servs, etc.
+        self.flip = rospy.Service("flip", Empty, self.flip_callback)
+        self.pour = rospy.Service("pour", Empty, self.pour_callback)
+        self.lift = rospy.Service("lift", Empty, self.lift_callback)
+        self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
+        self.marker_pub = rospy.Publisher("markers", MarkerArray, queue_size=10, latch=True)
 
         # instantiate robot commander object
         self.robot = moveit_commander.RobotCommander()
@@ -47,20 +63,11 @@ class ManipulatorControl:
         self.gripper_move_group = moveit_commander.MoveGroupCommander('hand')
         
         self.planning_frame = self.arm_move_group.get_planning_frame()
-        
-        self.waypoints = rospy.get_param("/waypoints")
-        self.pancake = rospy.get_param("/pancake_location") #position of pancake in camera frame
-        self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
-        self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
-        self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
-        self.flip = rospy.Service("flip", Empty, self.flip_callback)
-        self.pour = rospy.Service("pour",Empty,self.pour_callback)
 
-        # simple action client
-        self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
+        self.add_work_table()
+        self.add_base_table()
 
-        self.add_table()
-        self.add_table1()
+        self.lift_waypoints = []
 
 
     def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
@@ -97,7 +104,7 @@ class ManipulatorControl:
         return False
 
 
-    def add_table(self):
+    def add_work_table(self):
         """ Adds worktable to planning scene
 
         Places table collision object based on the world frame to the left of robot
@@ -105,15 +112,15 @@ class ManipulatorControl:
         """
         table_pose = PoseStamped()
         table_pose.header.frame_id = "world"
-        table_pose.pose.position.x = 0.25
-        table_pose.pose.position.y = -0.55
-        table_pose.pose.position.z = -0.025
+        table_pose.pose.position.x = self.work_table_pose[0]
+        table_pose.pose.position.y = self.work_table_pose[1]
+        table_pose.pose.position.z = self.work_table_pose[2]
         table_pose.pose.orientation.w = 1.0
-        table_name = "table"
+        table_name = "work_table"
         while not self.wait_for_state_update(table_name, box_is_known=True):
-            self.scene.add_box(table_name, table_pose, size=(1.0, 0.62, 0.05))
-
-    def add_table1(self):
+            self.scene.add_box(table_name, table_pose, size=(self.work_table_dims[0], self.work_table_dims[1], self.work_table_dims[2]))
+    
+    def add_base_table(self):
         """ Adds base table to planning scene 
 
         Places table collision object based on the world frame to front of the robot
@@ -121,14 +128,14 @@ class ManipulatorControl:
         """
         table_pose = PoseStamped()
         table_pose.header.frame_id = "world"
-        table_pose.pose.position.x = 0.35
-        table_pose.pose.position.y = 0.1
-        table_pose.pose.position.z = -0.025
+        table_pose.pose.position.x = self.base_table_pose[0]
+        table_pose.pose.position.y = self.base_table_pose[1]
+        table_pose.pose.position.z = self.base_table_pose[2]
         table_pose.pose.orientation.w = 1.0
-        table_name = "table1"
+        table_name = "base_table"
         while not self.wait_for_state_update(table_name, box_is_known=True):
-            self.scene.add_box(table_name, table_pose, size=(0.5, 0.62, 0.05))
-
+            self.scene.add_box(table_name, table_pose, size=(self.base_table_dims[0], self.base_table_dims[1], self.base_table_dims[2]))
+    
     def open_gripper(self):
         self.gripper_move_group.set_named_target('open')
         self.gripper_move_group.go()
@@ -336,6 +343,71 @@ class ManipulatorControl:
         pose = list_to_pose(pose_list)
         return pose
     
+    def lift_callback(self, req):
+        """ Callback function for lift service
+
+        Commands the robot to follow a series of wayopints to lift the pancake out of the pan
+
+        Args:
+            req
+
+        Returns:
+            EmptyResponse (Empty) : empty response
+        """
+
+        self.open_gripper()
+        
+        print("Moving to position of spatula")
+        pose = Pose()
+        pose.position.x = self.spatula[0]
+        pose.position.y = self.spatula[1]
+        pose.position.z = self.spatula[2]+0.2
+        pose.orientation.x = 0.711238
+        pose.orientation.y = 0.702951
+        pose.orientation.z = 0
+        pose.orientation.w = 0
+
+        rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+        self.arm_move_group.set_pose_target(pose)
+        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        plan = self.arm_move_group.go(wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        print("Grasping")
+        self.grasp(.06,.005,.005,.1,20)
+
+        print("Moving to position of pancake")
+        pose.position.x = self.pancake[0]
+        pose.position.y = self.pancake[1] + 0.05
+        pose.position.z = self.pancake[2] + 0.20
+
+        self.arm_move_group.set_pose_target(pose)
+        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        plan = self.arm_move_group.go(wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        print("Pushing spatula under pancake")
+        pose.position.y = self.pancake[1] - 0.05
+        self.arm_move_group.set_pose_target(pose)
+        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        plan = self.arm_move_group.go(wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        print("Lifting spatula up")
+        pose.position.z = 0.25
+        self.arm_move_group.set_pose_target(pose)
+        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        plan = self.arm_move_group.go(wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        return EmptyResponse()
+
+
+        
 def main():
     """
     the main() function
