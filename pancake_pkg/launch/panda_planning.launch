@@ -77,5 +77,7 @@
   </node>
 
   <rosparam command="load" file="$(find pancake_pkg)/config/waypoints.yaml"/>
+  <rosparam command="load" file="$(find pancake_pkg)/config/camera.yaml"/>
+
 
 </launch>

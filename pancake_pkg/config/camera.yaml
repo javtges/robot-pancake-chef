@@ -1,0 +1,16 @@
+pancake_location:
+  - 1.42046
+  - 0.0
+  - 9.990248
+spatula_location:
+  - 1.4
+  - 0.4
+  - 9.5
+bottle_location:
+  - 1.42046
+  - 0.8367115
+  - 9.897794
+robot_atag:
+  - 1
+  - 1
+  - 10
