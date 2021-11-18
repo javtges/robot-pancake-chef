@@ -267,6 +267,7 @@ class ManipulatorControl:
         # self.arm_move_group.stop()
 
         pose = self.get_pose('bottle')
+        logdebug(pose)
         self.arm_move_group.set_pose_target(pose)
         success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
         self.arm_move_group.execute(trajectory_message, wait=True)
