@@ -341,7 +341,7 @@ class ManipulatorControl:
         pose = Pose()
         pose.position.x = self.spatula_pose[0]
         pose.position.y = self.spatula_pose[1]
-        pose.position.z = self.spatula_pose[2]+0.01
+        pose.position.z = self.spatula_pose[2]+0.2
         pose.orientation.x = 0.711238
         pose.orientation.y = 0.702951
         pose.orientation.z = 0
@@ -360,7 +360,7 @@ class ManipulatorControl:
         print("Moving to position of pancake")
         pose.position.x = self.pancake_pose[0]
         pose.position.y = self.pancake_pose[1] + 0.05
-        pose.position.z = self.pancake_pose[2] - 0.003
+        pose.position.z = self.pancake_pose[2] + 0.20
 
         self.arm_move_group.set_pose_target(pose)
         (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
@@ -383,9 +383,6 @@ class ManipulatorControl:
         plan = self.arm_move_group.go(wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
-
-
-
 
         return EmptyResponse()
 
