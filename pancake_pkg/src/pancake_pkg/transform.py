@@ -37,7 +37,7 @@ class TransformToRobot():
 			pose_list - list of 7 values corresponding to a pose
 		"""
         pose = np.zeros(7)
-        pose[0:2] = self.obj_pos
+        pose[0:3] = self.obj_pos
         # apr_obj_tf = np.array([0,0,0])
         # apr_obj_tf = self.obj_pos - self.robot_atag
         # apr_obj_tf[2] = -1 *apr_obj_tf[2]
