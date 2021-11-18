@@ -137,6 +137,9 @@ class ManipulatorControl:
         link0_atag_tf.transform.rotation = Quaternion(*q1)
         static_broadcaster.sendTransform(link0_atag_tf)
 
+    """rosrun tf static_transform_publisher -.1143 -.1111 0 0 0 0 1 table_tag world 10
+    """
+
     def dyn_tf(self):
         broadcaster = tf2_ros.TransformBroadcaster()
         while not rospy.is_shutdown():
