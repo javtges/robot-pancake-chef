@@ -74,8 +74,6 @@ class ManipulatorControl:
         self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
         self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
         #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
-        self.flip = rospy.Service("flip", Empty, self.flip_callback)
-        self.pour = rospy.Service("pour",Empty,self.pour_callback)
 
         self.add_work_table()
         self.add_base_table()
@@ -87,6 +85,7 @@ class ManipulatorControl:
         listener = tf.TransformListener()
         (trans, rot) = listener.lookupTransform('/camera_color_optical_frame','/table_tag',rospy.Time(0))
         self.robot_atag = trans
+        self.robot_atag_q = rot
         self.dyn_tf()
 
 
@@ -132,7 +131,9 @@ class ManipulatorControl:
         link0_atag_tf.transform.translation.x = .1143
         link0_atag_tf.transform.translation.y = .1111
         link0_atag_tf.transform.translation.z = 0
+        #link0_atag_tf.transform.rotation = self.robot_atag_q
         q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        link0_atag_tf.transform.rotation = Quaternion(*q1)
         static_broadcaster.sendTransform(link0_atag_tf)
 
     def dyn_tf(self):
