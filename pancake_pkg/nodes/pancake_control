@@ -16,7 +16,7 @@ import rospy
 import sys
 import moveit_commander
 import geometry_msgs
-from geometry_msgs.msg import PoseStamped, Pose
+from geometry_msgs.msg import PoseStamped, Pose, Quaternion, TransformStamped
 from moveit_commander.conversions import pose_to_list, list_to_pose
 from std_srvs.srv import Empty, EmptyResponse
 import actionlib
@@ -24,6 +24,11 @@ from franka_gripper.msg import GraspAction, GraspGoal, GraspEpsilon
 from rospy.core import logdebug
 from math import pi
 import numpy as np
+import tf
+from tf import listener, TransformListener
+import tf2_ros
+from tf_conversions import transformations
+ 
 
 class ManipulatorControl:
     def __init__(self):
@@ -52,7 +57,7 @@ class ManipulatorControl:
         self.pancake = rospy.get_param("/pancake_location") #position of pancake in camera frame
         self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
         self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
-        self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
+        #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
         self.flip = rospy.Service("flip", Empty, self.flip_callback)
         self.pour = rospy.Service("pour",Empty,self.pour_callback)
 
@@ -61,6 +66,13 @@ class ManipulatorControl:
 
         self.add_table()
         self.add_table1()
+
+        # Listener
+        self.link0_atag()
+        listener = tf.TransformListener()
+        (trans, rot) = listener.lookupTransform('/camera_color_optical_frame','/table_tag',rospy.Time(0))
+        self.robot_atag = trans
+        self.dyn_tf()
 
 
     def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
@@ -95,6 +107,37 @@ class ManipulatorControl:
             seconds = rospy.get_time()
 
         return False
+
+    def link0_atag(self):
+        static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        link0_atag_tf = TransformStamped()
+        link0_atag_tf.header.stamp = rospy.Time.now()
+        link0_atag_tf.header.frame_id = "panda_link0"
+        link0_atag_tf.child_frame_id = "table_tag"
+        link0_atag_tf.transform.translation.x = .1143
+        link0_atag_tf.transform.translation.y = .1111
+        link0_atag_tf.transform.translation.z = 0
+        q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        static_broadcaster.sendTransform(link0_atag_tf)
+
+    def dyn_tf(self):
+        broadcaster = tf2_ros.TransformBroadcaster()
+        while not rospy.is_shutdown():
+            # Add Odometry to base_footprint in tf
+            tf_time = rospy.Time.now()
+            atag_bottle_tf = TransformStamped()
+            atag_bottle_tf.header.stamp = tf_time
+            atag_bottle_tf.header.frame_id = "table_tag"
+            atag_bottle_tf.child_frame_id = "bottle"
+            # Update x, y, and z positions
+            atag_bottle_tf.transform.translation.x = self.bottle[0] - self.atag[0]
+            atag_bottle_tf.transform.translation.y = self.bottle[1] - self.atag[1]
+            atag_bottle_tf.transform.translation.z = -1 * (self.bottle[2] - self.atag[2])
+            # Quaternion of the angle about the z axis
+            q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+            atag_bottle_tf.transform.rotation = Quaternion(*q1)
+            # Send the transform
+            broadcaster.sendTransform(atag_bottle_tf)	
 
 
     def add_table(self):
@@ -327,10 +370,13 @@ class ManipulatorControl:
         elif name == "spatula": 
             obj_pos = self.spatula
         elif name == "bottle": 
-            obj_pos = self.bottle
+            #obj_pos = self.bottle
+            listen = TransformListener()
+            (trans, rot) = listener.lookupTransform('/panda_link0', '/bottle', rospy.Time(0))
+            obj_pos = trans
         else: 
             KeyError("Object does not exist")
-        tf = TransformToRobot(name, obj_pos, self.robot_atag)
+        tf = TransformToRobot(name, obj_pos)
         pose_list = tf.compute()
         pose = list_to_pose(pose_list)
         return pose

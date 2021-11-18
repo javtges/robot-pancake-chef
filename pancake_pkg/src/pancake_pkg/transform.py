@@ -14,21 +14,19 @@ import numpy as np
 
 # Function to compute position of the object in robot frame
 class TransformToRobot():
-    def __init__(self, name, obj_pos, robot_atag):
+    def __init__(self, name, obj_pos):
         """Manages setup for the class.
 
 		Args:
             name - name of the object (pancake, spatula, bottle)
             obj_pos - position of the object in the camera frame
-            robot_atag - position of april tag of known distance from robot
 
 		Returns:
 			None
 		"""
         self.name = name
         self.obj_pos = np.array(obj_pos)
-        self.robot_atag = np.array(robot_atag)
-        self.link0_ratag_tf = np.array([0.1, 0.1, 0]) # THESE ARE ARBITRALILY SET RIGHT NOW
+        self.link0_ratag_tf = np.array([0.1143, 0.1111, 0]) # THESE ARE ARBITRALILY SET RIGHT NOW
 
     def compute(self):
         """Computes position of object with respect to link0.
@@ -39,10 +37,11 @@ class TransformToRobot():
 			pose_list - list of 7 values corresponding to a pose
 		"""
         pose = np.zeros(7)
-        apr_obj_tf = np.array([0,0,0])
-        apr_obj_tf = self.obj_pos - self.robot_atag
-        apr_obj_tf[2] = -1 *apr_obj_tf[2]
-        pose[0:3] = self.link0_ratag_tf + apr_obj_tf
+        pose[0:2] = self.obj_pos
+        # apr_obj_tf = np.array([0,0,0])
+        # apr_obj_tf = self.obj_pos - self.robot_atag
+        # apr_obj_tf[2] = -1 *apr_obj_tf[2]
+        # pose[0:3] = self.link0_ratag_tf + apr_obj_tf
         if self.name == "pancake":
             pose[3] = 1
             pose[4] = 0
