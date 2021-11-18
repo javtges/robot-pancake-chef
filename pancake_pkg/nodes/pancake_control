@@ -36,7 +36,7 @@ class ManipulatorControl:
         # pubs, subs, servs, etc.
 
         # instantiate robot commander object
-        #self.robot = moveit_commander.RobotCommander()
+        self.robot = moveit_commander.RobotCommander()
 
         # instantiate scene object
         self.scene = moveit_commander.PlanningSceneInterface()
@@ -89,6 +89,41 @@ class ManipulatorControl:
             seconds = rospy.get_time()
 
         return False
+
+    def get_pose(self,object):
+
+        #Pull camera x, y, and z values from parameter server
+        #Transform x, y, and z values from the camera frame to the robot frame 
+
+        if object == 'bottle':
+
+            x_transformed = .52046
+            y_transformed = -0.0632885
+            z_transformed = .102206
+
+            pose = [x_transformed,y_transformed,z_transformed, 0.629614,.28868,-0.348472,0.631521]
+
+            return pose
+        
+        if object == 'spatula':
+
+            x_transformed = 0
+            y_transformed = 0
+            z_transformed = 0
+
+            pose = [x_transformed,y_transformed,z_transformed,1,0,0,0]
+
+            return pose 
+
+        if object == 'pancake':
+
+            x_transformed = 0
+            y_transformed = 0
+            z_transformed = 0
+
+            pose = [x_transformed,y_transformed,z_transformed,1,0,0,0]
+
+            return pose
 
     def add_table(self):
         """ Adds worktable to planning scene
@@ -195,6 +230,7 @@ class ManipulatorControl:
         """
         i = 0
         # if using rpy then euleur to quaternion will give exact movement without offset
+        self.open_gripper()
 
         for waypoint in self.waypoints:
             pose = list_to_pose(waypoint[0])
@@ -252,16 +288,23 @@ class ManipulatorControl:
 
         self.open_gripper()
 
-        pose = geometry_msgs.msg.Pose()
-        pose.position.x = .52046
-        pose.position.y = -0.0632885
-        pose.position.z = .102206
-        pose.orientation.x = 0.629614
-        pose.orientation.y = .28868
-        pose.orientation.z = -0.348472
-        pose.orientation.w = 0.631521
-        self.arm_move_group.go(pose, wait="true")
+        # pose = geometry_msgs.msg.Pose()
+        # pose.position.x = .52046
+        # pose.position.y = -0.0632885
+        # pose.position.z = .102206
+        # pose.orientation.x = 0.629614
+        # pose.orientation.y = .28868
+        # pose.orientation.z = -0.348472
+        # pose.orientation.w = 0.631521
+        # self.arm_move_group.go(pose, wait="true")
+        # self.arm_move_group.stop()
+
+        pose = self.get_pose('bottle')
+        self.arm_move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        self.arm_move_group.execute(trajectory_message, wait=True)
         self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
 
         print("Grasping")
         self.grasp(.06,.005,.005,.1,20)
@@ -281,16 +324,23 @@ class ManipulatorControl:
         print("Return bottle")
         self.spin(0)
 
-        pose = geometry_msgs.msg.Pose()
-        pose.position.x = .52046
-        pose.position.y = -0.0632885
-        pose.position.z = .102206
-        pose.orientation.x = 0.629614
-        pose.orientation.y = .28868
-        pose.orientation.z = -0.348472
-        pose.orientation.w = 0.631521
-        self.arm_move_group.go(pose, wait="true")
+        # pose = geometry_msgs.msg.Pose()
+        # pose.position.x = .52046
+        # pose.position.y = -0.0632885
+        # pose.position.z = .102206
+        # pose.orientation.x = 0.629614
+        # pose.orientation.y = .28868
+        # pose.orientation.z = -0.348472
+        # pose.orientation.w = 0.631521
+        # self.arm_move_group.go(pose, wait="true")
+        # self.arm_move_group.stop()
+
+        pose = self.get_pose('bottle')
+        self.arm_move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        self.arm_move_group.execute(trajectory_message, wait=True)
         self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
 
         self.open_gripper()
 
