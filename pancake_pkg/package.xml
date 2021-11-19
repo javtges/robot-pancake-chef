@@ -8,7 +8,9 @@
   <!-- Example:  -->
   <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
   <maintainer email="SarahZiselman2020@u.northwestern.edu">Sarah Ziselman</maintainer>
-  <maintainer email="andruliu20222@u.northwestern.edu">Andru Liu</maintainer>
+  <maintainer email="andruliu2022@u.northwestern.edu">Andru Liu</maintainer>
+  <maintainer email="jamesavtges2022@u.northwestern.edu">James Avtges</maintainer>
+
 
 
   <!-- One license tag required, multiple allowed, one license per tag -->
@@ -61,6 +63,7 @@
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>panda_moveit_config</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>apriltag_ros</exec_depend>
 
   <build_depend>moveit_msgs</build_depend>
   <build_depend>moveit_commander</build_depend>
