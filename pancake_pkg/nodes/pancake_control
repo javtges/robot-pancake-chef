@@ -130,11 +130,13 @@ class ManipulatorControl:
         link0_atag_tf.header.stamp = rospy.Time.now()
         link0_atag_tf.header.frame_id = "table_tag" 
         link0_atag_tf.child_frame_id = "world"
-        link0_atag_tf.transform.translation.x = .1143
-        link0_atag_tf.transform.translation.y = .1111
-        link0_atag_tf.transform.translation.z = 0
+        link0_atag_tf.transform.translation.x = 0.1143
+        link0_atag_tf.transform.translation.y = 0.1111
+        link0_atag_tf.transform.translation.z = 0.0
         #link0_atag_tf.transform.rotation = self.robot_atag_q
         q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        q2 = transformations.quaternion_from_euler(0, 0, -pi/2)
+        logdebug(q2)
         link0_atag_tf.transform.rotation = Quaternion(*q1)
         static_broadcaster.sendTransform(link0_atag_tf)
 
@@ -143,7 +145,7 @@ class ManipulatorControl:
 
     def dyn_tf(self, event=None):
         self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
-        logdebug(self.bottle)
+        # logdebug(self.bottle)
         broadcaster = tf2_ros.TransformBroadcaster()
         # Add Odometry to base_footprint in tf
         tf_time = rospy.Time.now()
@@ -152,12 +154,12 @@ class ManipulatorControl:
         atag_bottle_tf.header.frame_id = "camera_color_optical_frame"
         atag_bottle_tf.child_frame_id = "bottle"
         # Update x, y, and z positions
-        atag_bottle_tf.transform.translation.x = (self.bottle[0] - self.robot_atag_q[0])/1000
-        atag_bottle_tf.transform.translation.y = (self.bottle[1] - self.robot_atag_q[1])/1000
-        atag_bottle_tf.transform.translation.z = (self.bottle[2] - self.robot_atag_q[2])/1000
-        # atag_bottle_tf.transform.translation.x = (self.bottle[0])/1000
-        # atag_bottle_tf.transform.translation.y = (self.bottle[1])/1000
-        # atag_bottle_tf.transform.translation.z = (self.bottle[2])/1000
+        # atag_bottle_tf.transform.translation.x = (self.bottle[0] - self.robot_atag_q[0])/1000
+        # atag_bottle_tf.transform.translation.y = (self.bottle[1] - self.robot_atag_q[1])/1000
+        # atag_bottle_tf.transform.translation.z = (self.bottle[2] - self.robot_atag_q[2])/1000
+        atag_bottle_tf.transform.translation.x = (self.bottle[0])/1000
+        atag_bottle_tf.transform.translation.y = (self.bottle[1])/1000
+        atag_bottle_tf.transform.translation.z = (self.bottle[2])/1000 + 0.2
         # Quaternion of the angle about the z axis
         q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
         atag_bottle_tf.transform.rotation = Quaternion(*q1)
