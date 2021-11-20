@@ -10,6 +10,7 @@ PARAMETERS:
     + /waypoints ~ waypoints for the robot to follow depending on task
 
 """
+#from numpy.core.defchararray import _unary_op_dispatcher
 from pancake_pkg.transform import TransformToRobot
 import numpy as np
 import rospy
@@ -38,12 +39,17 @@ class ManipulatorControl:
         # initialize moveit commander
         moveit_commander.roscpp_initialize(sys.argv)
         
-        # parameters
-        self.waypoints = rospy.get_param("/waypoints")
-        self.pancake = rospy.get_param("/pancake_location") #position of pancake in camera frame
-        self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
-        self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
-        self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
+        # instantiate robot commander object
+        self.robot = moveit_commander.RobotCommander()
+
+        # instantiate scene object
+        self.scene = moveit_commander.PlanningSceneInterface()
+
+        # instantiate move groups
+        self.arm_move_group = moveit_commander.MoveGroupCommander('panda_arm')
+        self.gripper_move_group = moveit_commander.MoveGroupCommander('hand')
+        
+        self.planning_frame = self.arm_move_group.get_planning_frame()
 
         self.work_table_pose = rospy.get_param("work_table_pose")
         self.work_table_dims = rospy.get_param("work_table_dims")
@@ -56,41 +62,33 @@ class ManipulatorControl:
         self.lift = rospy.Service("lift", Empty, self.lift_callback)
         self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
         self.marker_pub = rospy.Publisher("markers", MarkerArray, queue_size=10, latch=True)
-
-        # instantiate robot commander object
-        self.robot = moveit_commander.RobotCommander()
-
-        # instantiate scene object
-        self.scene = moveit_commander.PlanningSceneInterface()
-
-        # instantiate move groups
-        self.arm_move_group = moveit_commander.MoveGroupCommander('panda_arm')
-        self.gripper_move_group = moveit_commander.MoveGroupCommander('hand')
         
-        self.planning_frame = self.arm_move_group.get_planning_frame()
+        # parameters
+        #self.waypoints = rospy.get_param("/waypoints")
+        # self.pancake = rospy.get_param("/pancake_location") #position of pancake in camera frame
+        # self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
+        # self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
+        #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
         
-        self.waypoints = rospy.get_param("/waypoints")
-        self.pancake = rospy.get_param("/pancake_location") #position of pancake in camera frame
-        self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
-        
+        self.link0_atag()
+
         #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
 
         self.add_work_table()
         self.add_base_table()
+        self.add_camera_stand()
+        self.add_camera()
 
         self.lift_waypoints = []
 
         # Listener
-        self.link0_atag()
-        listen = tf.TransformListener()
-        listen.waitForTransform('/camera_color_optical_frame','/table_tag',rospy.Time(), rospy.Duration(4.0))
-        (trans, rot) = listen.lookupTransform('/camera_color_optical_frame','/table_tag',rospy.Time(0))
-        self.robot_atag = trans
-        self.robot_atag_q = rot
+        # listen = tf.TransformListener()
+        # listen.waitForTransform('/camera_color_optical_frame','/table_tag',rospy.Time(), rospy.Duration(4.0))
+        # (trans, rot) = listen.lookupTransform('/camera_color_optical_frame','/table_tag',rospy.Time(0))
+        # self.robot_atag = trans
+        # self.robot_atag_q = rot
         self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
         
-
-
     def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
         """ Waits until changes are reflected in object lists 
 
@@ -130,20 +128,39 @@ class ManipulatorControl:
         link0_atag_tf.header.stamp = rospy.Time.now()
         link0_atag_tf.header.frame_id = "table_tag" 
         link0_atag_tf.child_frame_id = "world"
-        link0_atag_tf.transform.translation.x = 0.1143
-        link0_atag_tf.transform.translation.y = 0.1111
+        link0_atag_tf.transform.translation.x = -0.1143
+        link0_atag_tf.transform.translation.y = -0.1111
         link0_atag_tf.transform.translation.z = 0.0
         #link0_atag_tf.transform.rotation = self.robot_atag_q
-        q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
-        q2 = transformations.quaternion_from_euler(0, 0, -pi/2)
-        logdebug(q2)
-        link0_atag_tf.transform.rotation = Quaternion(*q1)
+        #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        # q2 = transformations.quaternion_from_euler(0, 0, -pi/2)
+        # logdebug(q2)
+        link0_atag_tf.transform.rotation.w = 1
         static_broadcaster.sendTransform(link0_atag_tf)
 
     """rosrun tf static_transform_publisher -.1143 -.1111 0 0 0 0 1 table_tag world 10
+                                            -0.1143 -0.1111 0 0 0 0 1
     """
 
+    def align_bottle(self):
+        broadcaster = tf2_ros.TransformBroadcaster()
+        tf_time = rospy.Time.now()
+        listen = TransformListener()
+        listen.waitForTransform('/world','/camera_color_optical_frame',rospy.Time(), rospy.Duration(4.0))
+        (trans, rot) = listen.lookupTransform('/world', '/camera_color_optical_frame', rospy.Time(0))
+        
+        # Bottle tag in real life:
+        bottle_irl = [0.1905, 0.13335, 0.0889]
+
+        # Bottle tag in world:
+        bottle_world = [0.1582140605076095, 0.2797960560533358, 0.41160352659259514]
+
+        self.bottle_offset = [bottle_irl[0] - bottle_world[0], bottle_irl[1]-bottle_world[1], bottle_irl[2]-bottle_world[2]]
+
+        self.un_rotation = [-1*rot[0], -1*rot[1], -1*rot[2],-1*rot[3]]
+
     def dyn_tf(self, event=None):
+        self.align_bottle()
         self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
         # logdebug(self.bottle)
         broadcaster = tf2_ros.TransformBroadcaster()
@@ -159,15 +176,20 @@ class ManipulatorControl:
         # atag_bottle_tf.transform.translation.z = (self.bottle[2] - self.robot_atag_q[2])/1000
         atag_bottle_tf.transform.translation.x = (self.bottle[0])/1000
         atag_bottle_tf.transform.translation.y = (self.bottle[1])/1000
-        atag_bottle_tf.transform.translation.z = (self.bottle[2])/1000 + 0.2
+        atag_bottle_tf.transform.translation.z = (self.bottle[2])/1000 #+ 0.3
         # Quaternion of the angle about the z axis
-        q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
-        atag_bottle_tf.transform.rotation = Quaternion(*q1)
+        # q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        atag_bottle_tf.transform.rotation = Quaternion(*self.un_rotation)
         # Send the transform
         # logdebug(atag_bottle_tf)
-        broadcaster.sendTransform(atag_bottle_tf)	
-        
+        broadcaster.sendTransform(atag_bottle_tf)
 
+    def ee_offset(self,pose):
+        pose.position.x += 0.02
+        pose.position.y += 0.0358
+        pose.position.z += 0
+
+        return pose 
 
     def add_work_table(self):
         """ Adds worktable to planning scene
@@ -201,6 +223,40 @@ class ManipulatorControl:
         while not self.wait_for_state_update(table_name, box_is_known=True):
             self.scene.add_box(table_name, table_pose, size=(self.base_table_dims[0], self.base_table_dims[1], self.base_table_dims[2]))
     
+    def add_camera_stand(self):
+        """ Adds camera stand to planning scene 
+
+        Places camera stand collision object based on the world frame to right of the robot
+
+        """
+        table_pose = PoseStamped()
+        table_pose.header.frame_id = "world"
+        table_pose.pose.position.x = -0.3
+        table_pose.pose.position.y = 0.3
+        table_pose.pose.position.z = self.base_table_pose[2]
+        table_pose.pose.orientation.w = 1.0
+        table_name = "camera_stand"
+        while not self.wait_for_state_update(table_name, box_is_known=True):
+            self.scene.add_box(table_name, table_pose, size=(0.0254, 0.0254, 4.0))
+
+
+    def add_camera(self):
+        """ Adds camera to planning scene 
+
+        Places camera collision object based on the world frame to right of the robot
+
+        """
+        table_pose = PoseStamped()
+        table_pose.header.frame_id = "world"
+        table_pose.pose.position.x = -0.3
+        table_pose.pose.position.y = 0.3
+        table_pose.pose.position.z = 0.7
+        table_pose.pose.orientation.w = 1.0
+        table_name = "camera"
+        while not self.wait_for_state_update(table_name, box_is_known=True):
+            self.scene.add_box(table_name, table_pose, size=(0.5, 0.0254, 0.0254))
+
+
     def open_gripper(self):
         self.gripper_move_group.set_named_target('open')
         self.gripper_move_group.go()
@@ -326,19 +382,25 @@ class ManipulatorControl:
     def pour_callback(self,empty):
 
         self.open_gripper()
+        pose = self.get_pose('bottle')
+        logdebug(pose)
+
+        self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
         # pose = geometry_msgs.msg.Pose()
-        # pose.position.x = .52046
-        # pose.position.y = -0.0632885
-        # pose.position.z = .102206
-        # pose.orientation.x = 0.629614
-        # pose.orientation.y = .28868
-        # pose.orientation.z = -0.348472
-        # pose.orientation.w = 0.631521
+        # pose.position.x = 0.365086
+        # pose.position.y = 0.412645
+        # pose.position.z = 0.32204
+        # pose.orientation.x = 0.403005
+        # pose.orientation.y = 0.678707
+        # pose.orientation.z = -0.321855
+        # pose.orientation.w = 0.522831
         # self.arm_move_group.go(pose, wait="true")
         # self.arm_move_group.stop()
-
-        pose = self.get_pose('bottle')
+        
+        # pose.position.z -= 0.178
+        # pose.position.x += 0.0
+        # pose.position.y -= 0.20
         logdebug(pose)
         self.arm_move_group.set_pose_target(pose)
         success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
@@ -375,7 +437,7 @@ class ManipulatorControl:
         # self.arm_move_group.go(pose, wait="true")
         # self.arm_move_group.stop()
 
-        pose = self.get_pose('bottle')
+        # pose = self.get_pose('bottle')
         self.arm_move_group.set_pose_target(pose)
         success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
         self.arm_move_group.execute(trajectory_message, wait=True)
@@ -402,14 +464,18 @@ class ManipulatorControl:
         elif name == "bottle": 
             #obj_pos = self.bottle
             listen = TransformListener()
-            listen.waitForTransform('/panda_link0','/bottle',rospy.Time(), rospy.Duration(4.0))
-            (trans, rot) = listen.lookupTransform('/panda_link0', '/bottle', rospy.Time(0))
-            obj_pos = trans
+            listen.waitForTransform('/panda_link0','/bottle_tag',rospy.Time(), rospy.Duration(4.0))
+            (trans, rot) = listen.lookupTransform('/panda_link0', '/bottle_tag', rospy.Time(0))
+            logdebug(trans)
+            obj_pos = [trans[0] + self.bottle_offset[0], trans[1] + self.bottle_offset[1], trans[2] + self.bottle_offset[2]]
         else: 
             KeyError("Object does not exist")
         tf = TransformToRobot(name, obj_pos)
+        logdebug(obj_pos)
+        logdebug(tf)
         pose_list = tf.compute()
         pose = list_to_pose(pose_list)
+        pose = self.ee_offset(pose)
         return pose
     
     def lift_callback(self, req):
@@ -474,8 +540,6 @@ class ManipulatorControl:
         self.arm_move_group.clear_pose_targets()
 
         return EmptyResponse()
-
-
         
 def main():
     """
