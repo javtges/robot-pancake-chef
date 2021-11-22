@@ -1,0 +1,585 @@
+#!/usr/bin/env python
+
+"""
+Flipping pancakes 
+
+SERVICES:
+    + /flip (Empty) ~ has the robot move to each waypoint and flip the pancake
+
+PARAMETERS:
+    + /waypoints ~ waypoints for the robot to follow depending on task
+
+"""
+#from numpy.core.defchararray import _unary_op_dispatcher
+from pancake_pkg.transform import TransformToRobot
+import numpy as np
+import rospy
+import sys
+import moveit_commander
+import geometry_msgs
+from geometry_msgs.msg import PoseStamped, Pose, Quaternion, TransformStamped, Vector3
+from moveit_commander.conversions import pose_to_list, list_to_pose
+from std_srvs.srv import Empty, EmptyResponse
+import actionlib
+from franka_gripper.msg import GraspAction, GraspGoal, GraspEpsilon
+from rospy.core import logdebug
+from math import pi
+import numpy as np
+from visualization_msgs.msg import MarkerArray, Marker
+import tf
+from tf import listener, TransformListener
+import tf2_ros
+from tf_conversions import transformations
+ 
+ 
+class ManipulatorControl:
+    def __init__(self):
+        super(ManipulatorControl, self).__init__()
+
+        # initialize moveit commander
+        moveit_commander.roscpp_initialize(sys.argv)
+        
+        # instantiate robot commander object
+        self.robot = moveit_commander.RobotCommander()
+
+        # instantiate scene object
+        self.scene = moveit_commander.PlanningSceneInterface()
+
+        # instantiate move groups
+        self.arm_move_group = moveit_commander.MoveGroupCommander('panda_arm')
+        self.gripper_move_group = moveit_commander.MoveGroupCommander('hand')
+        
+        self.planning_frame = self.arm_move_group.get_planning_frame()
+
+        self.work_table_pose = rospy.get_param("work_table_pose")
+        self.work_table_dims = rospy.get_param("work_table_dims")
+        self.base_table_pose = rospy.get_param("base_table_pose")
+        self.base_table_dims = rospy.get_param("base_table_dims")
+
+        # pubs, subs, servs, etc.
+        self.flip = rospy.Service("flip", Empty, self.flip_callback)
+        self.pour = rospy.Service("pour", Empty, self.pour_callback)
+        self.lift = rospy.Service("lift", Empty, self.lift_callback)
+        self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
+        self.marker_pub = rospy.Publisher("markers", MarkerArray, queue_size=10, latch=True)
+        
+        # parameters
+        #self.waypoints = rospy.get_param("/waypoints")
+        # self.pancake = rospy.get_param("/pancake_location") #position of pancake in camera frame
+        # self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
+        # self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
+        #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
+        
+        self.link0_atag()
+
+        #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
+
+        self.add_work_table()
+        self.add_base_table()
+        self.add_camera_stand()
+        self.add_camera()
+
+        self.lift_waypoints = []
+
+        # Listener
+        # listen = tf.TransformListener()
+        # listen.waitForTransform('/camera_color_optical_frame','/table_tag',rospy.Time(), rospy.Duration(4.0))
+        # (trans, rot) = listen.lookupTransform('/camera_color_optical_frame','/table_tag',rospy.Time(0))
+        # self.robot_atag = trans
+        # self.robot_atag_q = rot
+        self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
+        
+    def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
+        """ Waits until changes are reflected in object lists 
+
+        Ensures that collision updates are made in case the python node dies before publishing.
+        Integrated from Interbotix MoveIt Python Move Group Tutorials
+
+        Args: 
+            box_name (string) : name of the box being added 
+            box_is_known (bool) : if box is in get_known_object_names()
+            box_is_attached (bool) : if box is in get_attached_objects()
+            timeout (int) : time limit
+
+        Returns:
+            False (bool) : false return if the while loop is exited without returning (a timeout)
+        
+        """
+        start = rospy.get_time()
+        seconds = rospy.get_time()
+
+        while (seconds - start < timeout) and not rospy.is_shutdown():
+            attached_objects = self.scene.get_attached_objects([box_name])
+            is_attached = len(attached_objects.keys()) > 0
+
+            is_known = box_name in self.scene.get_known_object_names()
+
+            if (box_is_attached == is_attached) and (box_is_known == is_known):
+                return True
+
+            rospy.sleep(0.1)
+            seconds = rospy.get_time()
+
+        return False
+
+    def link0_atag(self):
+        static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        link0_atag_tf = TransformStamped()
+        link0_atag_tf.header.stamp = rospy.Time.now()
+        link0_atag_tf.header.frame_id = "table_tag" 
+        link0_atag_tf.child_frame_id = "world"
+        link0_atag_tf.transform.translation.x = -0.1143
+        link0_atag_tf.transform.translation.y = -0.1111
+        link0_atag_tf.transform.translation.z = 0.0
+        #link0_atag_tf.transform.rotation = self.robot_atag_q
+        #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        q2 = transformations.quaternion_from_euler(0, 0, -np.pi/4)
+        logdebug(q2)
+        link0_atag_tf.transform.rotation.w = 1
+        static_broadcaster.sendTransform(link0_atag_tf)
+
+    """rosrun tf static_transform_publisher -.1143 -.1111 0 0 0 0 1 table_tag world 10
+                                            -0.1143 -0.1111 0 0 0 0 1
+    """
+
+    def align_camera(self):
+        broadcaster = tf2_ros.TransformBroadcaster()
+        tf_time = rospy.Time.now()
+        listen = TransformListener()
+        listen.waitForTransform('/world','/camera_color_optical_frame',rospy.Time(), rospy.Duration(4.0))
+        (trans, rot) = listen.lookupTransform('/world', '/camera_color_optical_frame', rospy.Time(0))
+        
+        # Bottle tag in real life:
+        bottle_irl = [0.1905, 0.13335, 0.0889]
+
+        # Bottle tag in world:
+        bottle_world = [0.1582140605076095, 0.2797960560533358, 0.41160352659259514]
+
+        self.camera_offset = [bottle_irl[0] - bottle_world[0], bottle_irl[1]-bottle_world[1], bottle_irl[2]-bottle_world[2]]
+
+        self.un_rotation = [-1*rot[0], -1*rot[1], -1*rot[2],-1*rot[3]]
+
+    def dyn_tf(self, event=None):
+        self.align_camera()
+        self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
+        # logdebug(self.bottle)
+        broadcaster = tf2_ros.TransformBroadcaster()
+        # Add Odometry to base_footprint in tf
+        tf_time = rospy.Time.now()
+        atag_bottle_tf = TransformStamped()
+        atag_bottle_tf.header.stamp = tf_time
+        atag_bottle_tf.header.frame_id = "camera_color_optical_frame"
+        atag_bottle_tf.child_frame_id = "bottle"
+        # Update x, y, and z positions
+        # atag_bottle_tf.transform.translation.x = (self.bottle[0] - self.robot_atag_q[0])/1000
+        # atag_bottle_tf.transform.translation.y = (self.bottle[1] - self.robot_atag_q[1])/1000
+        # atag_bottle_tf.transform.translation.z = (self.bottle[2] - self.robot_atag_q[2])/1000
+        atag_bottle_tf.transform.translation.x = (self.bottle[0])/1000
+        atag_bottle_tf.transform.translation.y = (self.bottle[1])/1000
+        atag_bottle_tf.transform.translation.z = (self.bottle[2])/1000 #+ 0.3
+        # Quaternion of the angle about the z axis
+        # q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        atag_bottle_tf.transform.rotation = Quaternion(*self.un_rotation)
+        # Send the transform
+        # logdebug(atag_bottle_tf)
+        broadcaster.sendTransform(atag_bottle_tf)
+
+    def ee_offset(self,pose):
+        pose.position.x += 0.02
+        pose.position.y += 0.0358
+        pose.position.z += 0
+
+        return pose 
+
+    def add_work_table(self):
+        """ Adds worktable to planning scene
+
+        Places table collision object based on the world frame to the left of robot
+
+        """
+        table_pose = PoseStamped()
+        table_pose.header.frame_id = "world"
+        table_pose.pose.position.x = self.work_table_pose[0]
+        table_pose.pose.position.y = self.work_table_pose[1]
+        table_pose.pose.position.z = self.work_table_pose[2]
+        table_pose.pose.orientation.w = 1.0
+        table_name = "work_table"
+        while not self.wait_for_state_update(table_name, box_is_known=True):
+            self.scene.add_box(table_name, table_pose, size=(self.work_table_dims[0], self.work_table_dims[1], self.work_table_dims[2]))
+    
+    def add_base_table(self):
+        """ Adds base table to planning scene 
+
+        Places table collision object based on the world frame to front of the robot
+
+        """
+        table_pose = PoseStamped()
+        table_pose.header.frame_id = "world"
+        table_pose.pose.position.x = self.base_table_pose[0]
+        table_pose.pose.position.y = self.base_table_pose[1]
+        table_pose.pose.position.z = self.base_table_pose[2]
+        table_pose.pose.orientation.w = 1.0
+        table_name = "base_table"
+        while not self.wait_for_state_update(table_name, box_is_known=True):
+            self.scene.add_box(table_name, table_pose, size=(self.base_table_dims[0], self.base_table_dims[1], self.base_table_dims[2]))
+    
+    def add_camera_stand(self):
+        """ Adds camera stand to planning scene 
+
+        Places camera stand collision object based on the world frame to right of the robot
+
+        """
+        table_pose = PoseStamped()
+        table_pose.header.frame_id = "world"
+        table_pose.pose.position.x = -0.3
+        table_pose.pose.position.y = 0.3
+        table_pose.pose.position.z = self.base_table_pose[2]
+        table_pose.pose.orientation.w = 1.0
+        table_name = "camera_stand"
+        while not self.wait_for_state_update(table_name, box_is_known=True):
+            self.scene.add_box(table_name, table_pose, size=(0.0254, 0.0254, 4.0))
+
+
+    def add_camera(self):
+        """ Adds camera to planning scene 
+
+        Places camera collision object based on the world frame to right of the robot
+
+        """
+        table_pose = PoseStamped()
+        table_pose.header.frame_id = "world"
+        table_pose.pose.position.x = -0.3
+        table_pose.pose.position.y = 0.3
+        table_pose.pose.position.z = 0.7
+        table_pose.pose.orientation.w = 1.0
+        table_name = "camera"
+        while not self.wait_for_state_update(table_name, box_is_known=True):
+            self.scene.add_box(table_name, table_pose, size=(0.5, 0.0254, 0.0254))
+
+
+    def open_gripper(self):
+        self.gripper_move_group.set_named_target('open')
+        self.gripper_move_group.go()
+        self.gripper_move_group.stop()
+        self.gripper_move_group.clear_pose_targets()
+    
+    def close_gripper(self):
+        self.gripper_move_group.set_named_target('close')
+        self.gripper_move_group.go()
+        self.gripper_move_group.stop()
+        self.gripper_move_group.clear_pose_targets()
+
+    def go_to_ready(self):
+
+        self.arm_move_group.set_named_target('ready')
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
+        
+    def grasp(self, width, epsilon_inner, epsilon_outer, speed, force):
+        """ Uses actions to close gripper 
+        Specifies specific width and force with which to grip objects 
+        Args: 
+            width : width of specified object
+            force : force for gripping specified object
+        
+        """
+        self.client.wait_for_server()
+        ep = GraspEpsilon(inner = epsilon_inner, outer = epsilon_outer)
+        action = GraspGoal()
+        action.width = width
+        action.epsilon = ep
+        action.speed = speed
+        action.force = force
+        self.client.send_goal(action)
+        self.client.wait_for_result(rospy.Duration(15.0))
+
+    def flip_spatula(self):
+        """ Moves single joints based on current position 
+        
+        """
+        # two options to get current joint values, current one will save them 
+        # joint = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.remember_joint_values("panda_arm")
+        joints = self.arm_move_group.get_remembered_joint_values()
+        joint = joints["panda_arm"]
+        # joint 7 values are between -166 and 166
+        logdebug(joint)
+        if joint[-1] > 0:
+            joint[-1] -= pi
+        else:
+            joint[-1] += pi
+        logdebug(joint)
+        self.arm_move_group.set_joint_value_target(joint)
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+    def flip_callback(self, event=None):
+        """ Callback function for the flip service 
+        Moves the robot to follow waypoints in the parameter server to flip the pancake
+        Args: 
+            event (Empty) : Event holder for empty input
+        Returns:
+            EmptyResponse (Empty) : empty response
+        
+        """
+        #i = 0
+        # if using rpy then euleur to quaternion will give exact movement without offset
+        self.open_gripper()
+
+        pose = self.get_pose('spatula')
+        logdebug(pose)
+
+        self.arm_move_group.set_max_velocity_scaling_factor(0.5)
+        self.arm_move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        self.arm_move_group.execute(trajectory_message, wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+        
+        self.spin(self.grasp_offset)
+
+        self.close_gripper()
+
+        # for waypoint in self.waypoints:
+        #     pose = list_to_pose(waypoint[0])
+        #     gripper = waypoint[1]
+
+        #     # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+        #     # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",1.0)
+        #     # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+        #     # logdebug(velocity)
+
+        #     self.arm_move_group.set_max_velocity_scaling_factor(0.5)
+
+        #     # pose: x=1, y=0, z=0, w=0
+        #     self.arm_move_group.set_pose_target(pose)
+        #     success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        #     self.arm_move_group.execute(trajectory_message, wait=True)
+        #     self.arm_move_group.stop()
+        #     self.arm_move_group.clear_pose_targets()
+
+        #     if gripper:
+        #         #self.close_gripper()
+        #         width = .005
+        #         epsilon_inner = .0025
+        #         epsilon_outer = .0025
+        #         speed = .1
+        #         force = 50
+        #         self.grasp(width, epsilon_inner, epsilon_outer, speed, force)
+        #     else:
+        #         self.open_gripper()
+
+        #     if i == 2:
+        #         self.flip_spatula()
+        #     i += 1
+        #     # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
+        #     # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",0.1)
+        #     # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+        #     # logdebug(velocity)
+
+        return EmptyResponse()
+
+    def tip(self,joint5):
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': joint5, 'panda_joint6': six, 'panda_joint7': seven})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
+
+    def spin(self,joint7):
+
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
+        
+    def pour_callback(self,empty):
+
+        self.open_gripper()
+        pose = self.get_pose('bottle')
+        logdebug(pose)
+
+        self.arm_move_group.set_max_velocity_scaling_factor(0.5)
+
+        # pose = geometry_msgs.msg.Pose()
+        # pose.position.x = 0.365086
+        # pose.position.y = 0.412645
+        # pose.position.z = 0.32204
+        # pose.orientation.x = 0.403005
+        # pose.orientation.y = 0.678707
+        # pose.orientation.z = -0.321855
+        # pose.orientation.w = 0.522831
+        # self.arm_move_group.go(pose, wait="true")
+        # self.arm_move_group.stop()
+        
+        # pose.position.z -= 0.178
+        # pose.position.x += 0.0
+        # pose.position.y -= 0.20
+        logdebug(pose)
+        self.arm_move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        self.arm_move_group.execute(trajectory_message, wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        print("Grasping")
+        self.grasp(.06,.005,.005,.1,20)
+
+        print("Back to home")
+        self.go_to_ready()
+
+        print("Tipping")
+        joint5 = -pi/2
+        joint7 = pi/2 + pi/4
+        self.tip(joint5)
+        self.spin(joint7)
+
+        print("Squeezing")
+        self.grasp(.04,.005,.005,.1,50)
+
+        print("Return bottle")
+        self.spin(0)
+
+        # pose = geometry_msgs.msg.Pose()
+        # pose.position.x = .52046
+        # pose.position.y = -0.0632885
+        # pose.position.z = .102206
+        # pose.orientation.x = 0.629614
+        # pose.orientation.y = .28868
+        # pose.orientation.z = -0.348472
+        # pose.orientation.w = 0.631521
+        # self.arm_move_group.go(pose, wait="true")
+        # self.arm_move_group.stop()
+
+        # pose = self.get_pose('bottle')
+        self.arm_move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        self.arm_move_group.execute(trajectory_message, wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        self.open_gripper()
+        self.go_to_ready()
+
+        return []
+
+    def get_pose(self, name):
+        """Computes pose of arm to reach object.
+
+		Args:
+            name - name of the object
+		Returns:
+			pose - pose of the arm to reach object
+		"""
+
+        if name == "pancake": 
+            obj_pos = self.pancake
+        
+        elif name == "spatula": 
+            listen = TransformListener()
+            listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
+            (trans, rot) = listen.lookupTransform('/panda_link0', '/spatula_tag', rospy.Time(0))
+            logdebug(trans)
+            atag_offset = [.05,.01,.055]
+            obj_pos = [trans[0] + self.camera_offset[0] + atag_offset[0], trans[1] + self.camera_offset[1] + atag_offset[1], trans[2] + self.camera_offset[1] + atag_offset[2]]
+            #obj_pos = [trans[0] + self.camera_offset[0], trans[1] + self.camera_offset[1], trans[2] + self.camera_offset[1]]
+            rot_angle = transformations.euler_from_quaternion(rot)
+            self.grasp_offset = rot_angle[2] - pi/8
+
+        elif name == "bottle": 
+            #obj_pos = self.bottle
+            listen = TransformListener()
+            listen.waitForTransform('/panda_link0','/bottle_tag',rospy.Time(), rospy.Duration(4.0))
+            (trans, rot) = listen.lookupTransform('/panda_link0', '/bottle_tag', rospy.Time(0))
+            logdebug(trans)
+
+            # Added ee_offset values here, may or may not work!!!!!
+            obj_pos = [trans[0] + self.camera_offset[0] + 0.02, trans[1] + self.camera_offset[1] + 0.0358, trans[2] + self.camera_offset[2]]
+        else: 
+            KeyError("Object does not exist")
+        
+        tf = TransformToRobot(name, obj_pos)
+        logdebug(obj_pos)
+        logdebug(tf)
+        pose_list = tf.compute()
+        pose = list_to_pose(pose_list)
+        # pose = self.ee_offset(pose)
+        return pose
+    
+    def lift_callback(self, req):
+        """ Callback function for lift service
+
+        Commands the robot to follow a series of wayopints to lift the pancake out of the pan
+
+        Args:
+            req
+
+        Returns:
+            EmptyResponse (Empty) : empty response
+        """
+
+        self.open_gripper()
+        
+        print("Moving to position of spatula")
+        pose = Pose()
+        pose.position.x = self.spatula[0]
+        pose.position.y = self.spatula[1]
+        pose.position.z = self.spatula[2]+0.2
+        pose.orientation.x = 0.711238
+        pose.orientation.y = 0.702951
+        pose.orientation.z = 0
+        pose.orientation.w = 0
+
+        rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+        self.arm_move_group.set_pose_target(pose)
+        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        plan = self.arm_move_group.go(wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        print("Grasping")
+        self.grasp(.06,.005,.005,.1,20)
+
+        print("Moving to position of pancake")
+        pose.position.x = self.pancake[0]
+        pose.position.y = self.pancake[1] + 0.05
+        pose.position.z = self.pancake[2] + 0.20
+
+        self.arm_move_group.set_pose_target(pose)
+        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        plan = self.arm_move_group.go(wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        print("Pushing spatula under pancake")
+        pose.position.y = self.pancake[1] - 0.05
+        self.arm_move_group.set_pose_target(pose)
+        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        plan = self.arm_move_group.go(wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        print("Lifting spatula up")
+        pose.position.z = 0.25
+        self.arm_move_group.set_pose_target(pose)
+        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        plan = self.arm_move_group.go(wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
+        return EmptyResponse()
+        
+def main():
+    """
+    the main() function
+    """
+    rospy.init_node('manipulator', log_level=rospy.DEBUG)
+    node = ManipulatorControl()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass

@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+
+from numpy.core.defchararray import lower
+import rospy
+from cv_bridge import CvBridge, CvBridgeError
+from sensor_msgs.msg import Image, CompressedImage
+import numpy as np
+import cv2
+import pyrealsense2 as rs
+
+
+
+class ImageProcessing:
+
+    def __init__(self):
+        rospy.init_node('vision_test_node',anonymous=True, log_level=rospy.DEBUG)
+        rospy.logerr("started the node")
+
+        rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, callback=self.convert_depth_image, queue_size=1)
+        rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
+
+        rospy.logerr('subscribed')
+
+    def show_video(self,ros_image):
+        cv2.imshow("test",ros_image)
+        cv2.waitKey(3)
+
+    def convert_depth_image(self,ros_image):
+        bridge = CvBridge()
+        # Use cv_bridge() to convert the ROS image to OpenCV format
+        try:
+            self.depth_image = bridge.imgmsg_to_cv2(ros_image)
+            depth_array = np.array(self.depth_image, dtype=np.float32)
+            #self.show_video(depth_image)
+
+        except CvBridgeError:
+            print(CvBridgeError())
+            rospy.logerr("bad")
+
+    
+
+    def convert_color_image(self,ros_image):
+        bridge = CvBridge()
+        try:
+            self.bgr_image = bridge.imgmsg_to_cv2(ros_image)
+            self.hsv_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2HSV)
+            self.rgb_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2RGB)
+            self.grayscale_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2GRAY)
+
+            self.find_bottle_location()
+
+            self.show_video(self.rgb_image)
+
+        except CvBridgeError:
+            print(CvBridgeError())
+            rospy.logerr("bad")
+
+    def find_bottle_location(self):            
+
+            red_low = np.array([80,10,10])
+            red_up = np.array([255,255,255])
+
+            self.redmask = cv2.inRange(self.hsv_image,red_low,red_up)
+
+            self.masked_image = cv2.bitwise_and(self.hsv_image,self.hsv_image,mask=self.redmask)
+
+            self.masked_image_gray = cv2.cvtColor(self.masked_image, cv2.COLOR_RGB2GRAY)
+            
+            ret, thresh = cv2.threshold(self.masked_image_gray, 130,255, cv2.THRESH_BINARY)
+
+            contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+            areas = [cv2.contourArea(c) for c in contours]
+            max_index = np.argmax(areas)
+            cnt=contours[max_index]
+
+            x,y,w,h = cv2.boundingRect(cnt)
+            cv2.rectangle(self.rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
+
+            M = cv2.moments(cnt)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+
+            cv2.circle(self.rgb_image, (cx,cy), 4, (255,0,0), 3)
+
+            result = self.get_xyz_from_image(self.depth_image, cx, cy)
+
+            rospy.set_param("/bottle_location", result)
+
+
+    def get_xyz_from_image(self,depth_image, x,y):
+        intr = rs.intrinsics()
+        intr.width = 1280
+        intr.height = 720
+        intr.ppx = 651.0391845703125
+        intr.ppy = 354.0467834472656
+        intr.fx = 921.5665283203125
+        intr.fy = 921.62841796875
+        intr.model = rs.distortion.none #"plumb_bob"
+        intr.coeffs = [0.0, 0.0, 0.0, 0.0, 0.0]
+
+        result = rs.rs2_deproject_pixel_to_point(intr, [x,y], depth_image[y,x])
+        return result 
+
+    #Convert the depth image to a Numpy array
+
+if __name__ == '__main__':
+    ImageProcessing()
+    rospy.spin()
