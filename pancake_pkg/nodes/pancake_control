@@ -133,8 +133,8 @@ class ManipulatorControl:
         link0_atag_tf.transform.translation.z = 0.0
         #link0_atag_tf.transform.rotation = self.robot_atag_q
         #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
-        # q2 = transformations.quaternion_from_euler(0, 0, -pi/2)
-        # logdebug(q2)
+        q2 = transformations.quaternion_from_euler(0, 0, -np.pi/4)
+        logdebug(q2)
         link0_atag_tf.transform.rotation.w = 1
         static_broadcaster.sendTransform(link0_atag_tf)
 
@@ -142,7 +142,7 @@ class ManipulatorControl:
                                             -0.1143 -0.1111 0 0 0 0 1
     """
 
-    def align_bottle(self):
+    def align_camera(self):
         broadcaster = tf2_ros.TransformBroadcaster()
         tf_time = rospy.Time.now()
         listen = TransformListener()
@@ -155,12 +155,12 @@ class ManipulatorControl:
         # Bottle tag in world:
         bottle_world = [0.1582140605076095, 0.2797960560533358, 0.41160352659259514]
 
-        self.bottle_offset = [bottle_irl[0] - bottle_world[0], bottle_irl[1]-bottle_world[1], bottle_irl[2]-bottle_world[2]]
+        self.camera_offset = [bottle_irl[0] - bottle_world[0], bottle_irl[1]-bottle_world[1], bottle_irl[2]-bottle_world[2]]
 
         self.un_rotation = [-1*rot[0], -1*rot[1], -1*rot[2],-1*rot[3]]
 
     def dyn_tf(self, event=None):
-        self.align_bottle()
+        self.align_camera()
         self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
         # logdebug(self.bottle)
         broadcaster = tf2_ros.TransformBroadcaster()
@@ -323,46 +323,60 @@ class ManipulatorControl:
             EmptyResponse (Empty) : empty response
         
         """
-        i = 0
+        #i = 0
         # if using rpy then euleur to quaternion will give exact movement without offset
         self.open_gripper()
 
-        for waypoint in self.waypoints:
-            pose = list_to_pose(waypoint[0])
-            gripper = waypoint[1]
+        pose = self.get_pose('spatula')
+        logdebug(pose)
 
-            # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
-            # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",1.0)
-            # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
-            # logdebug(velocity)
+        self.arm_move_group.set_max_velocity_scaling_factor(0.5)
+        self.arm_move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        self.arm_move_group.execute(trajectory_message, wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+        
+        self.spin(self.grasp_offset)
 
-            self.arm_move_group.set_max_velocity_scaling_factor(0.5)
+        self.close_gripper()
 
-            # pose: x=1, y=0, z=0, w=0
-            self.arm_move_group.set_pose_target(pose)
-            success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
-            self.arm_move_group.execute(trajectory_message, wait=True)
-            self.arm_move_group.stop()
-            self.arm_move_group.clear_pose_targets()
+        # for waypoint in self.waypoints:
+        #     pose = list_to_pose(waypoint[0])
+        #     gripper = waypoint[1]
 
-            if gripper:
-                #self.close_gripper()
-                width = .005
-                epsilon_inner = .0025
-                epsilon_outer = .0025
-                speed = .1
-                force = 50
-                self.grasp(width, epsilon_inner, epsilon_outer, speed, force)
-            else:
-                self.open_gripper()
+        #     # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+        #     # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",1.0)
+        #     # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+        #     # logdebug(velocity)
 
-            if i == 2:
-                self.flip_spatula()
-            i += 1
-            # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
-            # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",0.1)
-            # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
-            # logdebug(velocity)
+        #     self.arm_move_group.set_max_velocity_scaling_factor(0.5)
+
+        #     # pose: x=1, y=0, z=0, w=0
+        #     self.arm_move_group.set_pose_target(pose)
+        #     success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        #     self.arm_move_group.execute(trajectory_message, wait=True)
+        #     self.arm_move_group.stop()
+        #     self.arm_move_group.clear_pose_targets()
+
+        #     if gripper:
+        #         #self.close_gripper()
+        #         width = .005
+        #         epsilon_inner = .0025
+        #         epsilon_outer = .0025
+        #         speed = .1
+        #         force = 50
+        #         self.grasp(width, epsilon_inner, epsilon_outer, speed, force)
+        #     else:
+        #         self.open_gripper()
+
+        #     if i == 2:
+        #         self.flip_spatula()
+        #     i += 1
+        #     # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
+        #     # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",0.1)
+        #     # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
+        #     # logdebug(velocity)
 
         return EmptyResponse()
 
@@ -378,7 +392,7 @@ class ManipulatorControl:
         self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
         self.arm_move_group.go()
         self.arm_move_group.stop()
-
+        
     def pour_callback(self,empty):
 
         self.open_gripper()
@@ -457,25 +471,39 @@ class ManipulatorControl:
 		Returns:
 			pose - pose of the arm to reach object
 		"""
+
         if name == "pancake": 
             obj_pos = self.pancake
+        
         elif name == "spatula": 
-            obj_pos = self.spatula
+            listen = TransformListener()
+            listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
+            (trans, rot) = listen.lookupTransform('/panda_link0', '/spatula_tag', rospy.Time(0))
+            logdebug(trans)
+            atag_offset = [.05,.01,.055]
+            obj_pos = [trans[0] + self.camera_offset[0] + atag_offset[0], trans[1] + self.camera_offset[1] + atag_offset[1], trans[2] + self.camera_offset[1] + atag_offset[2]]
+            #obj_pos = [trans[0] + self.camera_offset[0], trans[1] + self.camera_offset[1], trans[2] + self.camera_offset[1]]
+            rot_angle = transformations.euler_from_quaternion(rot)
+            self.grasp_offset = rot_angle[2] - pi/8
+
         elif name == "bottle": 
             #obj_pos = self.bottle
             listen = TransformListener()
             listen.waitForTransform('/panda_link0','/bottle_tag',rospy.Time(), rospy.Duration(4.0))
             (trans, rot) = listen.lookupTransform('/panda_link0', '/bottle_tag', rospy.Time(0))
             logdebug(trans)
-            obj_pos = [trans[0] + self.bottle_offset[0], trans[1] + self.bottle_offset[1], trans[2] + self.bottle_offset[2]]
+
+            # Added ee_offset values here, may or may not work!!!!!
+            obj_pos = [trans[0] + self.camera_offset[0] + 0.02, trans[1] + self.camera_offset[1] + 0.0358, trans[2] + self.camera_offset[2]]
         else: 
             KeyError("Object does not exist")
+        
         tf = TransformToRobot(name, obj_pos)
         logdebug(obj_pos)
         logdebug(tf)
         pose_list = tf.compute()
         pose = list_to_pose(pose_list)
-        pose = self.ee_offset(pose)
+        # pose = self.ee_offset(pose)
         return pose
     
     def lift_callback(self, req):
