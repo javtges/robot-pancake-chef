@@ -47,6 +47,7 @@ class ManipulatorControl:
 
         # instantiate move groups
         self.arm_move_group = moveit_commander.MoveGroupCommander('panda_arm')
+        self.arm_move_group.set_planning_time(30.0)
         self.gripper_move_group = moveit_commander.MoveGroupCommander('hand')
         
         self.planning_frame = self.arm_move_group.get_planning_frame()
@@ -201,7 +202,7 @@ class ManipulatorControl:
         table_pose.header.frame_id = "world"
         table_pose.pose.position.x = self.work_table_pose[0]
         table_pose.pose.position.y = self.work_table_pose[1]
-        table_pose.pose.position.z = self.work_table_pose[2]
+        table_pose.pose.position.z = self.work_table_pose[2] - .2
         table_pose.pose.orientation.w = 1.0
         table_name = "work_table"
         while not self.wait_for_state_update(table_name, box_is_known=True):
@@ -217,7 +218,7 @@ class ManipulatorControl:
         table_pose.header.frame_id = "world"
         table_pose.pose.position.x = self.base_table_pose[0]
         table_pose.pose.position.y = self.base_table_pose[1]
-        table_pose.pose.position.z = self.base_table_pose[2]
+        table_pose.pose.position.z = self.base_table_pose[2] - .1
         table_pose.pose.orientation.w = 1.0
         table_name = "base_table"
         while not self.wait_for_state_update(table_name, box_is_known=True):
@@ -392,7 +393,19 @@ class ManipulatorControl:
         self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
         self.arm_move_group.go()
         self.arm_move_group.stop()
-        
+
+    def pivot(self,joint1):
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': joint1, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
+
+    def extend(self,joint2, joint4):
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': joint2, 'panda_joint3': three, 'panda_joint4': joint4, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
+
     def pour_callback(self,empty):
 
         self.open_gripper()
@@ -401,20 +414,19 @@ class ManipulatorControl:
 
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
-        # pose = geometry_msgs.msg.Pose()
-        # pose.position.x = 0.365086
-        # pose.position.y = 0.412645
-        # pose.position.z = 0.32204
-        # pose.orientation.x = 0.403005
-        # pose.orientation.y = 0.678707
-        # pose.orientation.z = -0.321855
-        # pose.orientation.w = 0.522831
-        # self.arm_move_group.go(pose, wait="true")
-        # self.arm_move_group.stop()
+        self.pivot(pi/4)
+
+        self.tip(-1)
+
+        self.extend(.34,-1.9)
+
+        self.arm_move_group.go(pose, wait="true")
+        self.arm_move_group.stop()
         
-        # pose.position.z -= 0.178
-        # pose.position.x += 0.0
-        # pose.position.y -= 0.20
+        pose.position.z -= 0.178
+        pose.position.x += 0.0
+        pose.position.y -= 0.20
+
         logdebug(pose)
         self.arm_move_group.set_pose_target(pose)
         success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
@@ -494,7 +506,7 @@ class ManipulatorControl:
             logdebug(trans)
 
             # Added ee_offset values here, may or may not work!!!!!
-            obj_pos = [trans[0] + self.camera_offset[0] + 0.02, trans[1] + self.camera_offset[1] + 0.0358, trans[2] + self.camera_offset[2]]
+            obj_pos = [trans[0] + self.camera_offset[0] + 0.02, trans[1] + self.camera_offset[1] + 0.0158, trans[2] + self.camera_offset[2] + .02]
         else: 
             KeyError("Object does not exist")
         
