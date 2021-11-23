@@ -47,7 +47,7 @@ class ManipulatorControl:
 
         # instantiate move groups
         self.arm_move_group = moveit_commander.MoveGroupCommander('panda_arm')
-        self.arm_move_group.set_planning_time(30.0)
+        self.arm_move_group.set_planning_time(5.0)
         self.gripper_move_group = moveit_commander.MoveGroupCommander('hand')
         
         self.planning_frame = self.arm_move_group.get_planning_frame()
@@ -218,7 +218,7 @@ class ManipulatorControl:
         table_pose.header.frame_id = "world"
         table_pose.pose.position.x = self.base_table_pose[0]
         table_pose.pose.position.y = self.base_table_pose[1]
-        table_pose.pose.position.z = self.base_table_pose[2] - .1
+        table_pose.pose.position.z = self.base_table_pose[2] - .05
         table_pose.pose.orientation.w = 1.0
         table_name = "base_table"
         while not self.wait_for_state_update(table_name, box_is_known=True):
@@ -321,9 +321,9 @@ class ManipulatorControl:
         Args: 
             event (Empty) : Event holder for empty input
         Returns:
-            EmptyResponse (Empty) : empty response
-        
+            EmptyResponse (Empty) : empty response        
         """
+
         #i = 0
         # if using rpy then euleur to quaternion will give exact movement without offset
         self.open_gripper()
@@ -331,16 +331,31 @@ class ManipulatorControl:
         pose = self.get_pose('spatula')
         logdebug(pose)
 
+        self.pivot(-3*pi/8)
+        
+        self.tip(1)
+
+        self.extend(.30,-2)
+
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
+
+        logdebug(pose)
         self.arm_move_group.set_pose_target(pose)
         success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
         self.arm_move_group.execute(trajectory_message, wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
         
-        self.spin(self.grasp_offset)
+        #self.spin(self.grasp_offset)
 
-        self.close_gripper()
+        self.grasp(.005,.001,.001,.1,100)
+
+        # self.arm_move_group.set_cartesian_path()
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one + pi/4, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four - .05, 'panda_joint5': five, 'panda_joint6': six + .07, 'panda_joint7': seven})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
+
 
         # for waypoint in self.waypoints:
         #     pose = list_to_pose(waypoint[0])
@@ -412,6 +427,13 @@ class ManipulatorControl:
         pose = self.get_pose('bottle')
         logdebug(pose)
 
+        # pose.position.z -= 0.178
+        # pose.position.x += 0.0
+        # pose.position.y -= 0.20
+
+        if pose.position.z <= .06:
+            pose.position.z = 0.065
+
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
         self.pivot(pi/4)
@@ -423,9 +445,6 @@ class ManipulatorControl:
         self.arm_move_group.go(pose, wait="true")
         self.arm_move_group.stop()
         
-        pose.position.z -= 0.178
-        pose.position.x += 0.0
-        pose.position.y -= 0.20
 
         logdebug(pose)
         self.arm_move_group.set_pose_target(pose)
@@ -452,18 +471,6 @@ class ManipulatorControl:
         print("Return bottle")
         self.spin(0)
 
-        # pose = geometry_msgs.msg.Pose()
-        # pose.position.x = .52046
-        # pose.position.y = -0.0632885
-        # pose.position.z = .102206
-        # pose.orientation.x = 0.629614
-        # pose.orientation.y = .28868
-        # pose.orientation.z = -0.348472
-        # pose.orientation.w = 0.631521
-        # self.arm_move_group.go(pose, wait="true")
-        # self.arm_move_group.stop()
-
-        # pose = self.get_pose('bottle')
         self.arm_move_group.set_pose_target(pose)
         success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
         self.arm_move_group.execute(trajectory_message, wait=True)
@@ -471,6 +478,9 @@ class ManipulatorControl:
         self.arm_move_group.clear_pose_targets()
 
         self.open_gripper()
+
+        self.pivot(pi/4)
+
         self.go_to_ready()
 
         return []
@@ -489,20 +499,35 @@ class ManipulatorControl:
         
         elif name == "spatula": 
             listen = TransformListener()
-            listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
-            (trans, rot) = listen.lookupTransform('/panda_link0', '/spatula_tag', rospy.Time(0))
+            try:
+                listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
+                (trans, rot) = listen.lookupTransform('/panda_link0', '/spatula_tag', rospy.Time(0))
+                self.prev_spatula_trans = trans
+                self.prev_spatula_rot = rot
+            except:
+                trans = self.prev_spatula_trans
+                rot = self.prev_spatula_rot
+
             logdebug(trans)
-            atag_offset = [.05,.01,.055]
+            #atag_offset = [.05,0,.055]
+            atag_offset = [.05,-.11,-.05]
             obj_pos = [trans[0] + self.camera_offset[0] + atag_offset[0], trans[1] + self.camera_offset[1] + atag_offset[1], trans[2] + self.camera_offset[1] + atag_offset[2]]
             #obj_pos = [trans[0] + self.camera_offset[0], trans[1] + self.camera_offset[1], trans[2] + self.camera_offset[1]]
             rot_angle = transformations.euler_from_quaternion(rot)
-            self.grasp_offset = rot_angle[2] - pi/8
+            self.grasp_offset = rot_angle[2] - pi/2
 
         elif name == "bottle": 
             #obj_pos = self.bottle
             listen = TransformListener()
-            listen.waitForTransform('/panda_link0','/bottle_tag',rospy.Time(), rospy.Duration(4.0))
-            (trans, rot) = listen.lookupTransform('/panda_link0', '/bottle_tag', rospy.Time(0))
+            try:
+                listen.waitForTransform('/panda_link0','/bottle_tag',rospy.Time(), rospy.Duration(4.0))
+                (trans, rot) = listen.lookupTransform('/panda_link0', '/bottle_tag', rospy.Time(0))
+                self.prev_bottle_trans = trans
+                self.prev_bottle_rot = rot
+            except:
+                trans = self.prev_bottle_trans
+                rot = self.prev_bottle_rot
+
             logdebug(trans)
 
             # Added ee_offset values here, may or may not work!!!!!
