@@ -48,10 +48,14 @@ class TransformToRobot():
             pose[5] = 0
             pose[6] = 0
         elif self.name == "spatula":
-            pose[3] = -sqrt(2)/2 #0 #sqrt(2)/2 #0.89434
-            pose[4] = sqrt(2)/2 #0 #-sqrt(2)/2 #0.44627
-            pose[5] = 0 #-0.38268 #0.00059094
-            pose[6] = 0 #0.92387 #0.031514
+            # pose[3] = -sqrt(2)/2 #0 #sqrt(2)/2 #0.89434
+            # pose[4] = sqrt(2)/2 #0 #-sqrt(2)/2 #0.44627
+            # pose[5] = 0 #-0.38268 #0.00059094
+            # pose[6] = 0 #0.92387 #0.031514
+            pose[3] = -0.629614
+            pose[4] = -0.28868
+            pose[5] = -0.348472
+            pose[6] = 0.631521
         
         elif self.name == "bottle":
             pose[3] = 0.629614
