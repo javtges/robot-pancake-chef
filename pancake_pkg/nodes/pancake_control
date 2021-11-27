@@ -556,51 +556,46 @@ class ManipulatorControl:
         """
 
         self.open_gripper()
-        
-        print("Moving to position of spatula")
-        pose = Pose()
-        pose.position.x = self.spatula[0]
-        pose.position.y = self.spatula[1]
-        pose.position.z = self.spatula[2]+0.2
-        pose.orientation.x = 0.711238
-        pose.orientation.y = 0.702951
-        pose.orientation.z = 0
-        pose.orientation.w = 0
+        pose = self.get_pose('spatula')
+        logdebug(pose)
 
-        rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
+        self.arm_move_group.set_max_velocity_scaling_factor(0.5)
+
         self.arm_move_group.set_pose_target(pose)
         (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        plan = self.arm_move_group.go(wait=True)
+        plan = self.arm_move_group.execute(traj_msg, wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
 
         print("Grasping")
         self.grasp(.06,.005,.005,.1,20)
 
-        print("Moving to position of pancake")
-        pose.position.x = self.pancake[0]
-        pose.position.y = self.pancake[1] + 0.05
-        pose.position.z = self.pancake[2] + 0.20
+        pose = self.get_pose('pancake')
+        logdebug(pose)
+
+        print("Moving to position right of pancake")
+        pose.position.y += 0.05
+        pose.position.z += 0.20
 
         self.arm_move_group.set_pose_target(pose)
         (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        plan = self.arm_move_group.go(wait=True)
+        plan = self.arm_move_group.go(traj_msg, wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
 
-        print("Pushing spatula under pancake")
-        pose.position.y = self.pancake[1] - 0.05
+        print("Moving to position left of pancake")
+        pose.position.y -= 0.05
         self.arm_move_group.set_pose_target(pose)
         (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        plan = self.arm_move_group.go(wait=True)
+        plan = self.arm_move_group.go(traj_msg, wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
 
         print("Lifting spatula up")
-        pose.position.z = 0.25
+        pose.position.z += 0.25
         self.arm_move_group.set_pose_target(pose)
         (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        plan = self.arm_move_group.go(wait=True)
+        plan = self.arm_move_group.go(traj_msg, wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
 

@@ -1,0 +1,16 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/sarah/Documents/Embedded_Systems/final_project_ws/devel/lib/python3/dist-packages",
+        "/home/sarah/Documents/Embedded_Systems/pincherx_ws/devel/lib/python3/dist-packages",
+        "/home/sarah/Documents/Object_Search_Robot/ws/devel/lib/python3/dist-packages",
+        "/home/sarah/Documents/ME_499_spring/moveit_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/sarah/Documents/Embedded_Systems/final_project_ws/devel/lib/python3/dist-packages",
+        "/home/sarah/Documents/Embedded_Systems/pincherx_ws/devel/lib/python3/dist-packages",
+        "/home/sarah/Documents/Object_Search_Robot/ws/devel/lib/python3/dist-packages",
+        "/home/sarah/Documents/ME_499_spring/moveit_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ]
+}
