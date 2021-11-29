@@ -295,11 +295,8 @@ class ManipulatorControl:
         self.client.wait_for_result(rospy.Duration(15.0))
 
     def flip_spatula(self):
-        """ Moves single joints based on current position 
-        
+        """ Moves single joint based on current position 
         """
-        # two options to get current joint values, current one will save them 
-        # joint = self.arm_move_group.get_current_joint_values()
         self.arm_move_group.remember_joint_values("panda_arm")
         joints = self.arm_move_group.get_remembered_joint_values()
         joint = joints["panda_arm"]
@@ -323,9 +320,6 @@ class ManipulatorControl:
         Returns:
             EmptyResponse (Empty) : empty response        
         """
-
-        #i = 0
-        # if using rpy then euleur to quaternion will give exact movement without offset
         self.open_gripper()
 
         pose = self.get_pose('spatula')
@@ -350,49 +344,15 @@ class ManipulatorControl:
 
         self.grasp(.005,.001,.001,.1,100)
 
-        # self.arm_move_group.set_cartesian_path()
+        self.arm_move_group.set_max_acceleration_scaling_factor(0.5)
+        # self.flip_spatula()
+
         one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
         self.arm_move_group.set_joint_value_target({'panda_joint1': one + pi/4, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four - .05, 'panda_joint5': five, 'panda_joint6': six + .07, 'panda_joint7': seven})
         self.arm_move_group.go()
         self.arm_move_group.stop()
 
-
-        # for waypoint in self.waypoints:
-        #     pose = list_to_pose(waypoint[0])
-        #     gripper = waypoint[1]
-
-        #     # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 1.0)
-        #     # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",1.0)
-        #     # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
-        #     # logdebug(velocity)
-
-        #     self.arm_move_group.set_max_velocity_scaling_factor(0.5)
-
-        #     # pose: x=1, y=0, z=0, w=0
-        #     self.arm_move_group.set_pose_target(pose)
-        #     success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
-        #     self.arm_move_group.execute(trajectory_message, wait=True)
-        #     self.arm_move_group.stop()
-        #     self.arm_move_group.clear_pose_targets()
-
-        #     if gripper:
-        #         #self.close_gripper()
-        #         width = .005
-        #         epsilon_inner = .0025
-        #         epsilon_outer = .0025
-        #         speed = .1
-        #         force = 50
-        #         self.grasp(width, epsilon_inner, epsilon_outer, speed, force)
-        #     else:
-        #         self.open_gripper()
-
-        #     if i == 2:
-        #         self.flip_spatula()
-        #     i += 1
-        #     # rospy.set_param("/robot_description_planning/default_velocity_scaling_factor", 0.1)
-        #     # rospy.set_param("/robot_description_planning/default_acceleration_scaling_factor",0.1)
-        #     # velocity = rospy.get_param("/robot_description_planning/default_velocity_scaling_factor")
-        #     # logdebug(velocity)
+        self.arm_move_group.set_max_acceleration_scaling_factor(0.1)
 
         return EmptyResponse()
 
