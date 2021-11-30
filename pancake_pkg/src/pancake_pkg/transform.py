@@ -58,8 +58,8 @@ class TransformToRobot():
             pose[6] = 0.631521
         
         elif self.name == "bottle":
-            pose[3] = 0.629614
-            pose[4] = 0.28868
+            pose[3] = -0.629614
+            pose[4] = -0.28868
             pose[5] = -0.348472
             pose[6] = 0.631521
         else:
