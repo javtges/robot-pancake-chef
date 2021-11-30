@@ -575,31 +575,41 @@ class ManipulatorControl:
         pose.orientation.w = 0.631521
         logdebug(pose)
 
+        waypoints = []
+
         print("Moving to position right of pancake")
         pose.position.y -= 0.07
         # pose.position.z += 0.20
-        
-        self.arm_move_group.set_pose_target(pose)
-        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        plan = self.arm_move_group.execute(traj_msg, wait=True)
-        self.arm_move_group.stop()
-        self.arm_move_group.clear_pose_targets()
+        waypoints.append(copy.deepcopy(pose))
+     
+        # self.arm_move_group.set_pose_target(pose)
+        # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        # plan = self.arm_move_group.execute(traj_msg, wait=True)
+        # self.arm_move_group.stop()
+        # self.arm_move_group.clear_pose_targets()
 
         print("Moving to position left of pancake")
         pose.position.y += 0.1
-        self.arm_move_group.set_pose_target(pose)
-        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        plan = self.arm_move_group.execute(traj_msg, wait=True)
-        self.arm_move_group.stop()
-        self.arm_move_group.clear_pose_targets()
+        waypoints.append(copy.deepcopy(pose))
+
+        # self.arm_move_group.set_pose_target(pose)
+        # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        # plan = self.arm_move_group.execute(traj_msg, wait=True)
+        # self.arm_move_group.stop()
+        # self.arm_move_group.clear_pose_targets()
 
         print("Lifting spatula up")
         pose.position.z += 0.25
-        self.arm_move_group.set_pose_target(pose)
-        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        plan = self.arm_move_group.execute(traj_msg, wait=True)
-        self.arm_move_group.stop()
-        self.arm_move_group.clear_pose_targets()
+        waypoints.append(copy.deepcopy(pose))
+
+        # self.arm_move_group.set_pose_target(pose)
+        # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        # plan = self.arm_move_group.execute(traj_msg, wait=True)
+        # self.arm_move_group.stop()
+        # self.arm_move_group.clear_pose_targets()
+
+        (plan, fraction) = arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        arm_move_group.execute(plan, wait="True")
 
         return EmptyResponse()
         
