@@ -3,7 +3,7 @@
 from numpy.core.defchararray import lower
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import Image, CompressedImage, CameraInfo
 import numpy as np
 import cv2
 import pyrealsense2 as rs
@@ -18,6 +18,7 @@ class ImageProcessing:
 
         rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, callback=self.convert_depth_image, queue_size=1)
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
+        rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
 
         rospy.logerr('subscribed')
 
@@ -37,8 +38,6 @@ class ImageProcessing:
             print(CvBridgeError())
             rospy.logerr("bad")
 
-    
-
     def convert_color_image(self,ros_image):
         bridge = CvBridge()
         try:
@@ -54,6 +53,17 @@ class ImageProcessing:
         except CvBridgeError:
             print(CvBridgeError())
             rospy.logerr("bad")
+
+    def get_intrinsics(self, camera_info):
+        self.intr = rs.intrinsics()
+        self.intr.width = camera_info.width
+        self.intr.height = camera_info.height
+        self.intr.ppx = camera_info.K[2]
+        self.intr.ppy = camera_info.K[5]
+        self.intr.fx = camera_info.K[0]
+        self.intr.fy = camera_info.K[4]
+        self.intr.model = rs.distortion.none
+        self.intr.coeffs = [0.0, 0.0, 0.0, 0.0, 0.0]
 
     def find_bottle_location(self):            
 
@@ -89,20 +99,9 @@ class ImageProcessing:
 
 
     def get_xyz_from_image(self,depth_image, x,y):
-        intr = rs.intrinsics()
-        intr.width = 1280
-        intr.height = 720
-        intr.ppx = 651.0391845703125
-        intr.ppy = 354.0467834472656
-        intr.fx = 921.5665283203125
-        intr.fy = 921.62841796875
-        intr.model = rs.distortion.none #"plumb_bob"
-        intr.coeffs = [0.0, 0.0, 0.0, 0.0, 0.0]
 
-        result = rs.rs2_deproject_pixel_to_point(intr, [x,y], depth_image[y,x])
+        result = rs.rs2_deproject_pixel_to_point(self.intr, [x,y], depth_image[y,x])
         return result 
-
-    #Convert the depth image to a Numpy array
 
 if __name__ == '__main__':
     ImageProcessing()
