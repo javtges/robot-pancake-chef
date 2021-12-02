@@ -29,6 +29,7 @@ from visualization_msgs.msg import MarkerArray, Marker
 import tf
 from tf import listener, TransformListener
 import tf2_ros
+from copy import deepcopy
 from tf_conversions import transformations
  
  
@@ -360,6 +361,8 @@ class ManipulatorControl:
         self.arm_move_group.go()
         self.arm_move_group.stop()
 
+        # self.spatula_pose = self.arm_move_group.get_current_pose()
+
         # tipping up
         # one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
         # self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two+0.07, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
@@ -383,6 +386,8 @@ class ManipulatorControl:
         self.flip_spatula()
 
         self.arm_move_group.set_max_acceleration_scaling_factor(0.1)
+
+        self.go_to_ready()
 
         return EmptyResponse()
 
@@ -419,29 +424,33 @@ class ManipulatorControl:
 
         # pose.position.z -= 0.178
         # pose.position.x += 0.0
-        # pose.position.y -= 0.20
+        pose.position.y += 0.05
+
+        # pose.position.z -= 0.178
+        # pose.position.x += 0.0
+        # pose.position.y -= 0.25
+
 
         if pose.position.z <= .06:
             pose.position.z = 0.065
 
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
-        # self.pivot(pi/4)
+        self.pivot(pi/4)
 
-        # self.tip(-1)
+        self.tip(-1)
 
-        # self.extend(.34,-1.9)
+        self.extend(.34,-1.9)
 
-        self.pivot(-3*pi/8)
+        # self.pivot(-3*pi/8)
         
-        self.tip(1)
+        # self.tip(1)
 
-        self.extend(.30,-2)
+        # self.extend(.30,-2)
 
-        self.arm_move_group.go(pose, wait="true")
-        self.arm_move_group.stop()
+        # self.arm_move_group.go(pose, wait="true")
+        # self.arm_move_group.stop()
         
-
         logdebug(pose)
         self.arm_move_group.set_pose_target(pose)
         success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
@@ -455,14 +464,21 @@ class ManipulatorControl:
         print("Back to home")
         self.go_to_ready()
 
+        self.pivot(.96)
+
+        self.extend(-.08,-2.7)
+
         print("Tipping")
         joint5 = -pi/2
-        joint7 = pi/2 + pi/4
+        joint7 = -2.7
         self.tip(joint5)
         self.spin(joint7)
 
+        self.pancake_pose = self.arm_move_group.get_current_pose()
+        logdebug(self.pancake_pose)
+
         print("Squeezing")
-        self.grasp(.04,.005,.005,.1,50)
+        self.grasp(.05,.01,.01,.1,50)
 
         print("Return bottle")
         self.spin(0)
@@ -550,9 +566,9 @@ class ManipulatorControl:
             EmptyResponse (Empty) : empty response
         """
 
-        self.open_gripper()
-        pose = self.get_pose('spatula')
-        logdebug(pose)
+        # self.open_gripper()
+        # pose = self.get_pose('spatula')
+        # logdebug(pose)
 
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
@@ -562,34 +578,45 @@ class ManipulatorControl:
 
         self.extend(.30,-2)
 
-        self.arm_move_group.set_pose_target(pose)
-        (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        plan = self.arm_move_group.execute(traj_msg, wait=True)
+        # horizontal
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven-0.07})
+        self.arm_move_group.go()
         self.arm_move_group.stop()
-        self.arm_move_group.clear_pose_targets()
 
-        print("Grasping")
-        # self.grasp(.06,.005,.005,.1,20)
-        self.grasp(0.01,0.0001,0.0001,0.1,300)
+        # self.arm_move_group.set_pose_target(pose)
+        # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
+        # plan = self.arm_move_group.execute(traj_msg, wait=True)
+        # self.arm_move_group.stop()
+        # self.arm_move_group.clear_pose_targets()
+
+        # print("Grasping")
+        # # self.grasp(.06,.005,.005,.1,20)
+        # self.grasp(0.01,0.0001,0.0001,0.1,300)
 
         # pose = self.get_pose('pancake')
-        pose = Pose()
-        pose.position.x = 0.5
-        pose.position.y = 0.1
-        pose.position.z = 0.0
-        pose.orientation.x = -0.629614
-        pose.orientation.y = -0.28868
-        pose.orientation.z = -0.348472
-        pose.orientation.w = 0.631521
-        logdebug(pose)
+        self.pancake_pose = Pose()
+        self.pancake_pose.position.x = 0.2962857892236259
+        self.pancake_pose.position.y = 0.23646999765280124
+        self.pancake_pose.position.z = .09
+        # self.pancake_pose.orientation.x = -0.629614
+        # self.pancake_pose.orientation.y = -0.28868
+        # self.pancake_pose.orientation.z = -0.348472
+        # self.pancake_pose.orientation.w = 0.631521
+        self.pancake_pose.orientation.x = -0.65337
+        self.pancake_pose.orientation.y = -0.232
+        self.pancake_pose.orientation.z = -0.28944
+        self.pancake_pose.orientation.w = 0.65993
 
         waypoints = []
 
         print("Moving to position right of pancake")
-        pose.position.y -= 0.07
+        #self.pancake_pose.pose.position.y -= 0.07
+        self.pancake_pose.position.y -= .40
         # pose.position.z += 0.20
-        waypoints.append(copy.deepcopy(pose))
-     
+        #waypoints.append(deepcopy(self.pancake_pose.pose))
+        waypoints.append(deepcopy(self.pancake_pose))
+
         # self.arm_move_group.set_pose_target(pose)
         # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
         # plan = self.arm_move_group.execute(traj_msg, wait=True)
@@ -597,8 +624,10 @@ class ManipulatorControl:
         # self.arm_move_group.clear_pose_targets()
 
         print("Moving to position left of pancake")
-        pose.position.y += 0.1
-        waypoints.append(copy.deepcopy(pose))
+        #self.pancake_pose.pose.position.y += 0.1
+        self.pancake_pose.position.y += 0.07
+        #waypoints.append(deepcopy(self.pancake_pose.pose))
+        waypoints.append(deepcopy(self.pancake_pose))
 
         # self.arm_move_group.set_pose_target(pose)
         # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
@@ -607,8 +636,10 @@ class ManipulatorControl:
         # self.arm_move_group.clear_pose_targets()
 
         print("Lifting spatula up")
-        pose.position.z += 0.25
-        waypoints.append(copy.deepcopy(pose))
+        #self.pancake_pose.pose.position.z += 0.25
+        self.pancake_pose.position.z += 0.12
+        #waypoints.append(deepcopy(self.pancake_pose.pose))
+        waypoints.append(deepcopy(self.pancake_pose))
 
         # self.arm_move_group.set_pose_target(pose)
         # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
@@ -616,8 +647,8 @@ class ManipulatorControl:
         # self.arm_move_group.stop()
         # self.arm_move_group.clear_pose_targets()
 
-        (plan, fraction) = arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
-        arm_move_group.execute(plan, wait="True")
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        self.arm_move_group.execute(plan, wait="True")
 
         return EmptyResponse()
         
