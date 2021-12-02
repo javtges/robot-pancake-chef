@@ -101,6 +101,7 @@ class ImageProcessing:
     def get_xyz_from_image(self,depth_image, x,y):
 
         result = rs.rs2_deproject_pixel_to_point(self.intr, [x,y], depth_image[y,x])
+        print(result)
         return result 
 
 if __name__ == '__main__':
