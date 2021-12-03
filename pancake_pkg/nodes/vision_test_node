@@ -19,7 +19,7 @@ class ImageProcessing:
         rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, callback=self.convert_depth_image, queue_size=1)
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
         rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
-
+        rospy.set_param("/pancake_flag", True)
 
         rospy.logerr('subscribed')
 
@@ -53,7 +53,8 @@ class ImageProcessing:
                 self.pancake_flag = rospy.get_param("/pancake_flag")
                 if self.pancake_flag:
                     self.find_pancake_location()
-
+            except:
+                pass
 
             self.show_video(self.rgb_image)
 
@@ -105,7 +106,7 @@ class ImageProcessing:
             rospy.set_param("/bottle_location", result)
 
     def find_pancake_location(self):
-        pass
+        print("finding pancake?")
 
 
 
