@@ -20,6 +20,7 @@ class ImageProcessing:
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
         rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
 
+
         rospy.logerr('subscribed')
 
     def show_video(self,ros_image):
@@ -47,6 +48,12 @@ class ImageProcessing:
             self.grayscale_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2GRAY)
 
             self.find_bottle_location()
+
+            try:
+                self.pancake_flag = rospy.get_param("/pancake_flag")
+                if self.pancake_flag:
+                    self.find_pancake_location()
+
 
             self.show_video(self.rgb_image)
 
@@ -96,6 +103,10 @@ class ImageProcessing:
             result = self.get_xyz_from_image(self.depth_image, cx, cy)
 
             rospy.set_param("/bottle_location", result)
+
+    def find_pancake_location(self):
+        pass
+
 
 
     def get_xyz_from_image(self,depth_image, x,y):
