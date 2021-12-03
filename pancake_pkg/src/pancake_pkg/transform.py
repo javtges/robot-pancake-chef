@@ -26,7 +26,7 @@ class TransformToRobot():
 		"""
         self.name = name
         self.obj_pos = np.array(obj_pos)
-        self.link0_ratag_tf = np.array([0.1143, 0.1111, 0]) # THESE ARE ARBITRALILY SET RIGHT NOW
+        self.link0_ratag_tf = np.array([0.1143, 0.1111, 0]) # THESE ARE ARBITRARILY SET RIGHT NOW
 
     def compute(self):
         """Computes position of object with respect to link0.
@@ -52,10 +52,14 @@ class TransformToRobot():
             # pose[4] = sqrt(2)/2 #0 #-sqrt(2)/2 #0.44627
             # pose[5] = 0 #-0.38268 #0.00059094
             # pose[6] = 0 #0.92387 #0.031514
-            pose[3] = -0.629614
-            pose[4] = -0.28868
-            pose[5] = -0.348472
-            pose[6] = 0.631521
+            # pose[3] = -0.629614    # correct one
+            # pose[4] = -0.28868
+            # pose[5] = -0.348472
+            # pose[6] = 0.631521
+            pose[3] = -0.65337
+            pose[4] = -0.232
+            pose[5] = -0.28944
+            pose[6] = 0.65993
         
         elif self.name == "bottle":
             pose[3] = 0.629614
