@@ -404,7 +404,7 @@ class ManipulatorControl:
             self.pancake_pose.position.x = 0.2962857892236259
             self.pancake_pose.position.y = 0.23646999765280124
         
-        self.pancake_pose.position.z = 0.09
+        self.pancake_pose.position.z = 0.09 + 0.035
         self.pancake_pose.orientation.x = -0.65337
         self.pancake_pose.orientation.y = -0.232
         self.pancake_pose.orientation.z = -0.28944
@@ -747,7 +747,7 @@ class ManipulatorControl:
             # self.pancake_pose.orientation.z = -0.348472
             # self.pancake_pose.orientation.w = 0.631521
 
-        self.pancake_pose.position.z = 0.09
+        self.pancake_pose.position.z = 0.09 + 0.035
         self.pancake_pose.orientation.x = -0.65337
         self.pancake_pose.orientation.y = -0.232
         self.pancake_pose.orientation.z = -0.28944
