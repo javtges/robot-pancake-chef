@@ -316,8 +316,8 @@ class ManipulatorControl:
     def flip_spatula(self):
         """ Moves single joint based on current position 
         """
-        self.arm_move_group.set_max_velocity_scaling_factor(1.0)
-        self.arm_move_group.set_max_acceleration_scaling_factor(1.0)
+        self.arm_move_group.set_max_velocity_scaling_factor(.9)
+        self.arm_move_group.set_max_acceleration_scaling_factor(.9)
         self.arm_move_group.remember_joint_values("panda_arm")
         joints = self.arm_move_group.get_remembered_joint_values()
         joint = joints["panda_arm"]
@@ -349,8 +349,8 @@ class ManipulatorControl:
         pose = self.get_pose('spatula')
         logdebug(pose)
 
-        if pose.position.z <= .06 + 0.035:
-            pose.position.z = 0.065 + 0.035
+        # if pose.position.z <= .06 + 0.035:
+        #     pose.position.z = 0.065 + 0.035
 
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
@@ -361,26 +361,26 @@ class ManipulatorControl:
         self.extend(.30,-2)
 
         logdebug(pose)
-        # self.arm_move_group.set_pose_target(pose)
-        # success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
-        # self.arm_move_group.execute(trajectory_message, wait=True)
-        # self.arm_move_group.stop()
-        # self.arm_move_group.clear_pose_targets()
+        self.arm_move_group.set_pose_target(pose)
+        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        self.arm_move_group.execute(trajectory_message, wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
 
-        waypoints = []
+        # waypoints = []
         
-        waypoints.append(deepcopy(pose))
+        # waypoints.append(deepcopy(pose))
 
-        moveit_robot_state = self.robot.get_current_state()
+        # moveit_robot_state = self.robot.get_current_state()
 
-        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
-        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.4, 0.4)
-        self.arm_move_group.execute(plan, wait="True")
+        # (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        # plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.2, 0.2)
+        # self.arm_move_group.execute(plan, wait="True")
         
         #self.spin(self.grasp_offset)
 
-        # self.saved_spatula_traj = trajectory_message
-        self.saved_spatula_traj = plan
+        self.saved_spatula_traj = trajectory_message
+        # self.saved_spatula_traj = plan
 
         # self.grasp(.005,.001,.001,.1,100)
         self.grasp(0.01,0.005,0.005,0.3,500)
@@ -417,8 +417,9 @@ class ManipulatorControl:
         except:
             logdebug('Saved pancake pose not found')
             self.pancake_pose = Pose()
-            self.pancake_pose.position.x = 0.2962857892236259
-            self.pancake_pose.position.y = 0.23646999765280124
+            self.pancake_pose.position.x = 0.2813242885332488 #0.2962857892236259
+            self.pancake_pose.position.y = 0.11798261990992079 #0.23646999765280124
+
         
         self.pancake_pose.position.z = 0.09 + 0.035
         self.pancake_pose.orientation.x = -0.65337
@@ -452,7 +453,7 @@ class ManipulatorControl:
         waypoints.append(deepcopy(self.pancake_pose))
 
         #self.pancake_pose.pose.position.z += 0.10
-        self.pancake_pose.position.z += 0.10
+        self.pancake_pose.position.z += 0.10 + .015
         #waypoints.append(deepcopy(self.pancake_pose.pose))
         waypoints.append(deepcopy(self.pancake_pose))
 
@@ -761,8 +762,8 @@ class ManipulatorControl:
             # pose = self.get_pose('pancake')
             logdebug('Saved pancake pose not found')
             self.pancake_pose = Pose()
-            self.pancake_pose.position.x = 0.2962857892236259 #0.29720414417292834
-            self.pancake_pose.position.y = 0.23646999765280124 #0.2658212736204737
+            self.pancake_pose.position.x = 0.2813242885332488 #0.29720414417292834
+            self.pancake_pose.position.y = 0.11798261990992079 #0.2658212736204737
 
             # self.pancake_pose.orientation.x = -0.629614
             # self.pancake_pose.orientation.y = -0.28868
@@ -784,7 +785,7 @@ class ManipulatorControl:
 
         print("Moving to position left of pancake")
         #self.pancake_pose.pose.position.y -= 0.40 
-        self.pancake_pose.position.y -= 0.40
+        self.pancake_pose.position.y -= 0.40 - .03
         # pose.position.z += 0.20
         #waypoints.append(deepcopy(self.pancake_pose.pose))
         # waypoints.append(deepcopy(self.pancake_pose))
