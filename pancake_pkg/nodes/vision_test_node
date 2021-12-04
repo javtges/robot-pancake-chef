@@ -19,7 +19,7 @@ class ImageProcessing:
         rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, callback=self.convert_depth_image, queue_size=1)
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
         rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
-        rospy.set_param("/pancaked", True)
+        # rospy.set_param("/pancaked", True)
 
         self.point_counter = 0
         self.point_matrix = np.zeros((4,2),np.int)
@@ -79,11 +79,11 @@ class ImageProcessing:
             print(CvBridgeError())
             rospy.logerr("bad")
 
-    def mouse_coords(self,event,x,y,flags,params):
-        # Left button mouse click event opencv
-        if event == cv2.EVENT_LBUTTONDOWN:
-            self.point_matrix[counter] = x,y
-            self.point_counter += 1
+    # def mouse_coords(self,event,x,y,flags,params):
+    #     # Left button mouse click event opencv
+    #     if event == cv2.EVENT_LBUTTONDOWN:
+    #         self.point_matrix[counter] = x,y
+            # self.point_counter += 1
 
     def get_intrinsics(self, camera_info):
         self.intr = rs.intrinsics()
