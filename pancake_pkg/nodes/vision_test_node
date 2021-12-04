@@ -7,6 +7,8 @@ from sensor_msgs.msg import Image, CompressedImage, CameraInfo
 import numpy as np
 import cv2
 import pyrealsense2 as rs
+import tf2_ros
+import tf2_geometry_msgs
 
 
 
@@ -131,6 +133,29 @@ class ImageProcessing:
         self.pancake_pos = rospy.get_param("/saved_pancake_pose")
         # self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
+        ###########
+
+        listen = TransformListener()
+        listen.waitForTransform('/world','/camera_color_optical_frame',rospy.Time(), rospy.Duration(4.0))
+        (trans, rot) = listen.lookupTransform('/world', '/camera_color_optical_frame', rospy.Time(0))
+
+        tf_buffer = tf2_ros.Buffer()
+
+        pose_stamped = tf2_geometry_msgs.PoseStamped()
+        pose_stamped.pose = input_pose
+        pose_stamped.header.frame_id = from_frame
+        pose_stamped.header.stamp = rospy.Time.now()
+
+        try:
+            # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
+            output_pose_stamped = tf_buffer.transform(pose_stamped, to_frame, rospy.Duration(1))
+            return output_pose_stamped.pose
+
+        except:
+            rospy.logerr("it's doomed")
+
+        ############
+
         self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, self.pancake_pos)
         
         black_mask = np.zeros((720, 1280), np.uint8)
@@ -149,11 +174,6 @@ class ImageProcessing:
 
         if num_contours > 40:
             rospy.set_param("/flip_time", True)
-
-
-
-
-
 
     def get_xyz_from_image(self,depth_image, x,y):
         result = rs.rs2_deproject_pixel_to_point(self.intr, [x,y], depth_image[y,x])
