@@ -131,6 +131,8 @@ class ImageProcessing:
         self.pancake_pos = rospy.get_param("/saved_pancake_pose")
         # self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
+        print(self.pancake_pos)
+
         self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, self.pancake_pos)
         
         black_mask = np.zeros((720, 1280), np.uint8)
@@ -140,6 +142,8 @@ class ImageProcessing:
         self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80, (255,0,0), 3)
 
         masked_img = cv2.bitwise_and(black_mask, self.grayscale_image)
+
+        self.show_video("pancake?",masked_img)
 
         canny_pancake = cv2.Canny(masked_img,50,150, 5, L2gradient = True)
 

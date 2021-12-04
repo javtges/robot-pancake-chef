@@ -58,6 +58,8 @@ class ManipulatorControl:
         self.base_table_pose = rospy.get_param("base_table_pose")
         self.base_table_dims = rospy.get_param("base_table_dims")
 
+        # rospy.set_param('/pancaked',False)
+
         # pubs, subs, servs, etc.
         self.flip = rospy.Service("flip", Empty, self.flip_callback)
         self.pour = rospy.Service("pour", Empty, self.pour_callback)
@@ -432,7 +434,7 @@ class ManipulatorControl:
         waypoints.append(deepcopy(self.ee_pose.pose))
 
     
-        self.pancake_pose.position.y -= 0.40
+        self.pancake_pose.position.y -= 0.40 - .03
         #self.pancake_pose.pose.position.y -= 0.40 
         # pose.position.z += 0.20
         # waypoints.append(deepcopy(self.pancake_pose.pose))
@@ -759,8 +761,9 @@ class ManipulatorControl:
             # pose = self.get_pose('pancake')
             logdebug('Saved pancake pose not found')
             self.pancake_pose = Pose()
-            self.pancake_pose.position.x = 0.29720414417292834 #0.2962857892236259
-            self.pancake_pose.position.y = 0.2658212736204737 #0.23646999765280124
+            self.pancake_pose.position.x = 0.2962857892236259 #0.29720414417292834
+            self.pancake_pose.position.y = 0.23646999765280124 #0.2658212736204737
+
             # self.pancake_pose.orientation.x = -0.629614
             # self.pancake_pose.orientation.y = -0.28868
             # self.pancake_pose.orientation.z = -0.348472
