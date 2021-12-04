@@ -571,6 +571,8 @@ class ManipulatorControl:
         self.arm_move_group.set_max_acceleration_scaling_factor(0.1)
 
         self.saved_pancake_pose = self.arm_move_group.get_current_pose()
+        
+        rospy.set_param('/saved_pancake_pose',[saved_pancake_pose.pose.position.x,saved_pancake_pose.pose.position.y,saved_pancake_pose.pose.position.z])
         logdebug(self.saved_pancake_pose)
 
         rospy.set_param('/pancaked',True)
