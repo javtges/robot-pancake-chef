@@ -22,6 +22,7 @@ class ImageProcessing:
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
         rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
         # rospy.set_param("/pancaked", True)
+        # rospy.set_param("/saved_pancake_pose", True)
 
         self.point_counter = 0
         self.point_matrix = np.zeros((4,2),np.int)
@@ -155,6 +156,7 @@ class ImageProcessing:
             rospy.logerr("it's doomed")
 
         ############
+        print(self.pancake_pos)
 
         self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, self.pancake_pos)
         
@@ -165,6 +167,8 @@ class ImageProcessing:
         self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80, (255,0,0), 3)
 
         masked_img = cv2.bitwise_and(black_mask, self.grayscale_image)
+
+        self.show_video("pancake?",masked_img)
 
         canny_pancake = cv2.Canny(masked_img,50,150, 5, L2gradient = True)
 
