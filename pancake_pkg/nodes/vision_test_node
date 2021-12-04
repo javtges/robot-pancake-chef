@@ -20,6 +20,7 @@ class ImageProcessing:
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
         rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
         # rospy.set_param("/pancaked", True)
+        # rospy.set_param("/saved_pancake_pose", True)
 
         self.point_counter = 0
         self.point_matrix = np.zeros((4,2),np.int)
