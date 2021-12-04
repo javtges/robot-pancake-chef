@@ -20,6 +20,7 @@ class ImageProcessing:
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
         rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
         rospy.set_param("/pancaked", True)
+
         self.point_counter = 0
         self.point_matrix = np.zeros((4,2),np.int)
 
@@ -65,12 +66,12 @@ class ImageProcessing:
 
             self.find_bottle_location()
 
-            try:
-                self.pancake_flag = rospy.get_param("/pancaked")
-                if self.pancake_flag:
-                    self.find_pancake_location()
-            except:
-                pass
+            
+            self.pancake_flag = rospy.get_param("/pancaked")
+            if self.pancake_flag:
+                self.find_pancake_location()
+            # except:
+            #     pass
 
             self.show_video("test",self.rgb_image)
 
@@ -127,28 +128,27 @@ class ImageProcessing:
 
     def find_pancake_location(self):
         print("finding pancake?")
-        # self.pancake_pos = rospy.get_param("/saved_pancake_pose")
-        self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
+        self.pancake_pos = rospy.get_param("/saved_pancake_pose")
+        # self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
         self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, self.pancake_pos)
-        print(self.pancake_pos_pixel)
-        print('How about this?')
-        #black_mask = np.zeros((720, 1280), np.unit8)
-        black_mask = np.zeros((720, 1280))
-
-        print("made")
+        
+        black_mask = np.zeros((720, 1280), np.uint8)
 
         cv2.circle(black_mask, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80,255, -1)
-        print('corcle')
 
-        self.show_video("should be black",black_mask)
-
-        self.show_video("aaa", self.grayscale_image)
+        self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80, (255,0,0), 3)
 
         masked_img = cv2.bitwise_and(black_mask, self.grayscale_image)
 
+        canny_pancake = cv2.Canny(masked_img,50,150, 5, L2gradient = True)
 
-        print("AAAA")
+        contours, heir = cv2.findContours(canny_pancake, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        num_contours = len(contours)
+
+        if num_contours > 40:
+            rospy.set_param("/flip_time", True)
 
 
 
