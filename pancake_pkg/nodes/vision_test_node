@@ -3,7 +3,7 @@
 from numpy.core.defchararray import lower
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import Image, CompressedImage, CameraInfo
 import numpy as np
 import cv2
 import pyrealsense2 as rs
@@ -18,11 +18,16 @@ class ImageProcessing:
 
         rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, callback=self.convert_depth_image, queue_size=1)
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
+        rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
+        rospy.set_param("/pancaked", True)
+
+        self.point_counter = 0
+        self.point_matrix = np.zeros((4,2),np.int)
 
         rospy.logerr('subscribed')
 
-    def show_video(self,ros_image):
-        cv2.imshow("test",ros_image)
+    def show_video(self,name,ros_image):
+        cv2.imshow(name,ros_image)
         cv2.waitKey(3)
 
     def convert_depth_image(self,ros_image):
@@ -37,8 +42,6 @@ class ImageProcessing:
             print(CvBridgeError())
             rospy.logerr("bad")
 
-    
-
     def convert_color_image(self,ros_image):
         bridge = CvBridge()
         try:
@@ -47,13 +50,51 @@ class ImageProcessing:
             self.rgb_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2RGB)
             self.grayscale_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2GRAY)
 
+            # while self.point_counter < 4:
+                
+            #     for x in range(4):
+            #         cv2.circle(self.grayscale_image,(self.point_matrix[x][0],self.point_matrix[x][1]),3,(0,255,0),cv2.FILLED)
+                
+            #     # Showing original image
+            #     cv2.imshow("Original Image ",self.grayscale_image)
+            #     # Mouse click event on original image
+            #     cv2.setMouseCallback("Original Image ", self.mouse_coords)
+            #     # Printing updated point matrix
+            #     print(self.point_matrix)
+            #     # Refreshing window all time
+            #     cv2.waitKey(1)               
+
             self.find_bottle_location()
 
-            self.show_video(self.rgb_image)
+            
+            self.pancake_flag = rospy.get_param("/pancaked")
+            if self.pancake_flag:
+                self.find_pancake_location()
+            # except:
+            #     pass
+
+            self.show_video("test",self.rgb_image)
 
         except CvBridgeError:
             print(CvBridgeError())
             rospy.logerr("bad")
+
+    def mouse_coords(self,event,x,y,flags,params):
+        # Left button mouse click event opencv
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.point_matrix[counter] = x,y
+            self.point_counter += 1
+
+    def get_intrinsics(self, camera_info):
+        self.intr = rs.intrinsics()
+        self.intr.width = camera_info.width
+        self.intr.height = camera_info.height
+        self.intr.ppx = camera_info.K[2]
+        self.intr.ppy = camera_info.K[5]
+        self.intr.fx = camera_info.K[0]
+        self.intr.fy = camera_info.K[4]
+        self.intr.model = rs.distortion.none
+        self.intr.coeffs = [0.0, 0.0, 0.0, 0.0, 0.0]
 
     def find_bottle_location(self):            
 
@@ -78,31 +119,45 @@ class ImageProcessing:
             cv2.rectangle(self.rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
 
             M = cv2.moments(cnt)
-            cx = int(M['m10']/M['m00'])
-            cy = int(M['m01']/M['m00'])
+            self.cx = int(M['m10']/M['m00'])
+            self.cy = int(M['m01']/M['m00'])
 
-            cv2.circle(self.rgb_image, (cx,cy), 4, (255,0,0), 3)
+            cv2.circle(self.rgb_image, (self.cx,self.cy), 4, (255,0,0), 3)
 
-            result = self.get_xyz_from_image(self.depth_image, cx, cy)
+            result = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
-            rospy.set_param("/bottle_location", result)
+    def find_pancake_location(self):
+        print("finding pancake?")
+        self.pancake_pos = rospy.get_param("/saved_pancake_pose")
+        # self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
+
+        self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, self.pancake_pos)
+        
+        black_mask = np.zeros((720, 1280), np.uint8)
+
+        cv2.circle(black_mask, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80,255, -1)
+
+        self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80, (255,0,0), 3)
+
+        masked_img = cv2.bitwise_and(black_mask, self.grayscale_image)
+
+        canny_pancake = cv2.Canny(masked_img,50,150, 5, L2gradient = True)
+
+        contours, heir = cv2.findContours(canny_pancake, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        num_contours = len(contours)
+
+        if num_contours > 40:
+            rospy.set_param("/flip_time", True)
+
+
+
+
 
 
     def get_xyz_from_image(self,depth_image, x,y):
-        intr = rs.intrinsics()
-        intr.width = 1280
-        intr.height = 720
-        intr.ppx = 651.0391845703125
-        intr.ppy = 354.0467834472656
-        intr.fx = 921.5665283203125
-        intr.fy = 921.62841796875
-        intr.model = rs.distortion.none #"plumb_bob"
-        intr.coeffs = [0.0, 0.0, 0.0, 0.0, 0.0]
-
-        result = rs.rs2_deproject_pixel_to_point(intr, [x,y], depth_image[y,x])
+        result = rs.rs2_deproject_pixel_to_point(self.intr, [x,y], depth_image[y,x])
         return result 
-
-    #Convert the depth image to a Numpy array
 
 if __name__ == '__main__':
     ImageProcessing()
