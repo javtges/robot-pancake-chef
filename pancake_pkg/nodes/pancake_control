@@ -717,7 +717,14 @@ class ManipulatorControl:
         
         elif name == "spatula": 
             listen = TransformListener()
-            listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
+            while True:
+                try:
+                    listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
+                    break
+                except:
+                    logerror("Where is the transform bro???")
+                    continue
+            
             (trans, rot) = listen.lookupTransform('/panda_link0', '/spatula_tag', rospy.Time(0))
             # try:ssh
             #     listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
