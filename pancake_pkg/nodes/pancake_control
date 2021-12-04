@@ -87,25 +87,25 @@ class ManipulatorControl:
 
         self.lift_waypoints = []
 
-        ## Cartesian Threshold ##
-        lowerf = rospy.get_param("/franka_control/collision_config/lower_force_thresholds_nominal")
-        # lowert = rospy.get_param("/franka_control/collision_config/lower_torque_thresholds_nominal")
-        lowert = [40, 40, 40, 40, 40, 40, 40]
-        # lowertnew = [i=40 for i in lowert]
-        # rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
-        upperf = rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
-        # uppert = rospy.get_param("/franka_control/collision_config/upper_torque_thresholds_nominal")
-        # uppertnew = [i=40 for i in uppert]
-        rospy.set_param("/franka_control/collision_config/lower_torque_thresholds_nominal", lowert)
-        rospy.set_param("/franka_control/collision_config/upper_torque_thresholds_nominal", lowert)
-        # /franka_control/collision_config/lower_force_thresholds_nominal
-        # /franka_control/collision_config/lower_torque_thresholds_nominal
-        # /franka_control/collision_config/upper_force_thresholds_nominal
-        # /franka_control/collision_config/upper_torque_thresholds_nominal
+        # ## Cartesian Threshold ##
+        # lowerf = rospy.get_param("/franka_control/collision_config/lower_force_thresholds_nominal")
+        # # lowert = rospy.get_param("/franka_control/collision_config/lower_torque_thresholds_nominal")
+        # lowert = [40, 40, 40, 40, 40, 40, 40]
+        # # lowertnew = [i=40 for i in lowert]
+        # # rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
+        # upperf = rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
+        # # uppert = rospy.get_param("/franka_control/collision_config/upper_torque_thresholds_nominal")
+        # # uppertnew = [i=40 for i in uppert]
+        # rospy.set_param("/franka_control/collision_config/lower_torque_thresholds_nominal", lowert)
+        # rospy.set_param("/franka_control/collision_config/upper_torque_thresholds_nominal", lowert)
+        # # /franka_control/collision_config/lower_force_thresholds_nominal
+        # # /franka_control/collision_config/lower_torque_thresholds_nominal
+        # # /franka_control/collision_config/upper_force_thresholds_nominal
+        # # /franka_control/collision_config/upper_torque_thresholds_nominal
 
-        self.torque = rospy.ServiceProxy('/franka_control/set_force_torque_collision_behavior', SetForceTorqueCollisionBehavior)
-        self.torque(lowert, lowert, lowerf, upperf)
-        # /franka_control/set_force_torque_collision_behavior
+        # self.torque = rospy.ServiceProxy('/franka_control/set_force_torque_collision_behavior', SetForceTorqueCollisionBehavior)
+        # self.torque(lowert, lowert, lowerf, upperf)
+        # # /franka_control/set_force_torque_collision_behavior
 
 
         # Listener
