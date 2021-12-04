@@ -401,7 +401,7 @@ class ManipulatorControl:
         # self.pancake_pose = Pose()
         # self.pancake_pose.position.x = 0.2962857892236259
         # self.pancake_pose.position.y = 0.23646999765280124
-        self.pancake_pose.position.z = 0.09
+        self.pancake_pose.position.z = 0.09 + 0.035
         self.pancake_pose.orientation.x = -0.65337
         self.pancake_pose.orientation.y = -0.232
         self.pancake_pose.orientation.z = -0.28944
@@ -437,7 +437,10 @@ class ManipulatorControl:
         #waypoints.append(deepcopy(self.pancake_pose.pose))
         waypoints.append(deepcopy(self.pancake_pose))
 
+        moveit_robot_state = self.robot.get_current_state()
+
         (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
         self.arm_move_group.execute(plan, wait="True")
 
         # # sliding forward
@@ -785,7 +788,10 @@ class ManipulatorControl:
         # self.arm_move_group.stop()
         # self.arm_move_group.clear_pose_targets()
 
+        moveit_robot_state = self.robot.get_current_state()
+
         (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 20.0)  #25.0
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
         if fraction == 1.0:
             self.arm_move_group.execute(plan, wait="True")
         else:
