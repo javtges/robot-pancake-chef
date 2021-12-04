@@ -31,6 +31,7 @@ from tf import listener, TransformListener
 import tf2_ros
 from copy import deepcopy
 from tf_conversions import transformations
+from franka_msgs.srv import SetForceTorqueCollisionBehavior
  
  
 class ManipulatorControl:
@@ -86,6 +87,27 @@ class ManipulatorControl:
 
         self.lift_waypoints = []
 
+        ## Cartesian Threshold ##
+        lowerf = rospy.get_param("/franka_control/collision_config/lower_force_thresholds_nominal")
+        # lowert = rospy.get_param("/franka_control/collision_config/lower_torque_thresholds_nominal")
+        lowert = [40, 40, 40, 40, 40, 40, 40]
+        # lowertnew = [i=40 for i in lowert]
+        # rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
+        upperf = rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
+        # uppert = rospy.get_param("/franka_control/collision_config/upper_torque_thresholds_nominal")
+        # uppertnew = [i=40 for i in uppert]
+        rospy.set_param("/franka_control/collision_config/lower_torque_thresholds_nominal", lowert)
+        rospy.set_param("/franka_control/collision_config/upper_torque_thresholds_nominal", lowert)
+        # /franka_control/collision_config/lower_force_thresholds_nominal
+        # /franka_control/collision_config/lower_torque_thresholds_nominal
+        # /franka_control/collision_config/upper_force_thresholds_nominal
+        # /franka_control/collision_config/upper_torque_thresholds_nominal
+
+        self.torque = rospy.ServiceProxy('/franka_control/set_force_torque_collision_behavior', SetForceTorqueCollisionBehavior)
+        self.torque(lowert, lowert, lowerf, upperf)
+        # /franka_control/set_force_torque_collision_behavior
+
+
         # Listener
         # listen = tf.TransformListener()
         # listen.waitForTransform('/camera_color_optical_frame','/table_tag',rospy.Time(), rospy.Duration(4.0))
@@ -94,6 +116,9 @@ class ManipulatorControl:
         # self.robot_atag_q = rot
         self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
         
+
+
+
     def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
         """ Waits until changes are reflected in object lists 
 
