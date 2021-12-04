@@ -9,6 +9,9 @@
 
     <node pkg="tf2_ros" type="static_transform_publisher" name="virtual_joint_broadcaster_0" args="0 0 0 0 0 0 world panda_link0" />
 
+    <!-- the vision test launch file -->
+    <include file="$(find pancake_pkg)/launch/vision_test.launch"/>
+
     <group if="$(arg use_sim)">
         <!-- We do not have a real robot connected, so publish fake joint states via a joint_state_publisher
             MoveIt's fake controller's joint states are considered via the 'source_list' parameter -->
@@ -55,7 +58,5 @@
     
     <!-- team-written nodes to launch go here -->
     <node name="pancake_control" pkg="pancake_pkg" type="pancake_control" output="screen"/>
-
-    <include file="$(find pancake_pkg)/launch/vision_test.launch"/>
     
 </launch>

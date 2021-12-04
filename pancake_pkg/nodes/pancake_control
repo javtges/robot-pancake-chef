@@ -4,10 +4,16 @@
 Flipping pancakes 
 
 SERVICES:
-    + /flip (Empty) ~ has the robot move to each waypoint and flip the pancake
-
+    + /pour (Empty) ~ commands the robot to pour batter from a bottle onto the griddle
+    + /flip (Empty) ~ commands the robot to use a spatula to flip a pancake on the griddle
+    + /lift (Empty) ~ commands the robot to use a spatula to lift the pancake off the griddle
+ACTIONS:
+    + /grasp (GraspAction) ~ action that commands the franka grippers to hold the bottle
 PARAMETERS:
-    + /waypoints ~ waypoints for the robot to follow depending on task
+    + work_table_pose ~ the pose of the work table
+    + work_table_dims ~ the dimensions of the work table
+    + base_table_pose ~ the pose of the base table
+    + base_table_dims ~ the dimensions of the work table
 
 """
 #from numpy.core.defchararray import _unary_op_dispatcher
@@ -66,18 +72,8 @@ class ManipulatorControl:
         self.pour = rospy.Service("pour", Empty, self.pour_callback)
         self.lift = rospy.Service("lift", Empty, self.lift_callback)
         self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
-        self.marker_pub = rospy.Publisher("markers", MarkerArray, queue_size=10, latch=True)
-        
-        # parameters
-        #self.waypoints = rospy.get_param("/waypoints")
-        # self.pancake = rospy.get_param("/pancake_location") #position of pancake in camera frame
-        # self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
-        # self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
-        #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
-        
-        self.link0_atag()
 
-        #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
+        self.link0_atag()
 
         self.add_work_table()
         self.add_base_table()
@@ -300,7 +296,6 @@ class ManipulatorControl:
         table_name = "camera"
         while not self.wait_for_state_update(table_name, box_is_known=True):
             self.scene.add_box(table_name, table_pose, size=(0.5, 0.0254, 0.0254))
-
 
     def open_gripper(self):
         self.gripper_move_group.set_named_target('open')
@@ -572,6 +567,9 @@ class ManipulatorControl:
         self.arm_move_group.stop()
 
     def pour_callback(self,empty):
+        """
+        the pour callback function
+        """
 
         self.open_gripper()
         pose = self.get_pose('bottle')
