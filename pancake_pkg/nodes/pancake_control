@@ -395,12 +395,15 @@ class ManipulatorControl:
         # self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six+0.15, 'panda_joint7': seven})
         # self.arm_move_group.go()
         # self.arm_move_group.stop()
-
-        pancake_copy = deepcopy(self.saved_pancake_pose.pose)
-        self.pancake_pose = pancake_copy
-        # self.pancake_pose = Pose()
-        # self.pancake_pose.position.x = 0.2962857892236259
-        # self.pancake_pose.position.y = 0.23646999765280124
+        try: 
+            pancake_copy = deepcopy(self.saved_pancake_pose.pose)
+            self.pancake_pose = pancake_copy
+        except:
+            logdebug('Saved pancake pose not found')
+            self.pancake_pose = Pose()
+            self.pancake_pose.position.x = 0.2962857892236259
+            self.pancake_pose.position.y = 0.23646999765280124
+        
         self.pancake_pose.position.z = 0.09
         self.pancake_pose.orientation.x = -0.65337
         self.pancake_pose.orientation.y = -0.232
@@ -562,7 +565,7 @@ class ManipulatorControl:
         self.arm_move_group.set_max_acceleration_scaling_factor(1.0)
 
         print("Tipping")
-        joint5 = -pi/2
+        joint5 = -.96 #-pi/2
         joint7 = -2.7
         self.tip(joint5)
         self.spin(joint7)
@@ -572,7 +575,7 @@ class ManipulatorControl:
 
         self.saved_pancake_pose = self.arm_move_group.get_current_pose()
         
-        rospy.set_param('/saved_pancake_pose',[saved_pancake_pose.pose.position.x,saved_pancake_pose.pose.position.y,saved_pancake_pose.pose.position.z])
+        rospy.set_param('/saved_pancake_pose',[self.saved_pancake_pose.pose.position.x,self.saved_pancake_pose.pose.position.y,self.saved_pancake_pose.pose.position.z])
         logdebug(self.saved_pancake_pose)
 
         rospy.set_param('/pancaked',True)
@@ -634,7 +637,7 @@ class ManipulatorControl:
             listen = TransformListener()
             listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
             (trans, rot) = listen.lookupTransform('/panda_link0', '/spatula_tag', rospy.Time(0))
-            # try:
+            # try:ssh
             #     listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
             #     (trans, rot) = listen.lookupTransform('/panda_link0', '/spatula_tag', rospy.Time(0))
             #     self.prev_spatula_trans = trans
@@ -726,20 +729,26 @@ class ManipulatorControl:
         # # self.grasp(.06,.005,.005,.1,20)
         # self.grasp(0.01,0.0001,0.0001,0.1,300)
 
-        # self.pancake_pose = self.saved_pancake_pose.pose
-        # # pose = self.get_pose('pancake')
-        # # self.pancake_pose = Pose()
-        # # self.pancake_pose.position.x = 0.2962857892236259
-        # # self.pancake_pose.position.y = 0.23646999765280124
-        # self.pancake_pose.position.z = 0.09
-        # # self.pancake_pose.orientation.x = -0.629614
-        # # self.pancake_pose.orientation.y = -0.28868
-        # # self.pancake_pose.orientation.z = -0.348472
-        # # self.pancake_pose.orientation.w = 0.631521
-        # self.pancake_pose.orientation.x = -0.65337
-        # self.pancake_pose.orientation.y = -0.232
-        # self.pancake_pose.orientation.z = -0.28944
-        # self.pancake_pose.orientation.w = 0.65993
+        try:
+            pancake_copy = deepcopy(self.saved_pancake_pose.pose)
+            self.pancake_pose = pancake_copy
+            # self.pancake_pose = self.saved_pancake_pose.pose
+        except:
+            # pose = self.get_pose('pancake')
+            logdebug('Saved pancake pose not found')
+            self.pancake_pose = Pose()
+            self.pancake_pose.position.x = 0.29720414417292834 #0.2962857892236259
+            self.pancake_pose.position.y = 0.2658212736204737 #0.23646999765280124
+            # self.pancake_pose.orientation.x = -0.629614
+            # self.pancake_pose.orientation.y = -0.28868
+            # self.pancake_pose.orientation.z = -0.348472
+            # self.pancake_pose.orientation.w = 0.631521
+
+        self.pancake_pose.position.z = 0.09
+        self.pancake_pose.orientation.x = -0.65337
+        self.pancake_pose.orientation.y = -0.232
+        self.pancake_pose.orientation.z = -0.28944
+        self.pancake_pose.orientation.w = 0.65993
 
         waypoints = []
 
