@@ -59,7 +59,7 @@ class ManipulatorControl:
         self.base_table_pose = rospy.get_param("base_table_pose")
         self.base_table_dims = rospy.get_param("base_table_dims")
 
-        # rospy.set_param('/pancaked',False)
+        rospy.set_param('/pancaked',False)
 
         # pubs, subs, servs, etc.
         self.flip = rospy.Service("flip", Empty, self.flip_callback)
@@ -68,16 +68,7 @@ class ManipulatorControl:
         self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
         self.marker_pub = rospy.Publisher("markers", MarkerArray, queue_size=10, latch=True)
         
-        # parameters
-        #self.waypoints = rospy.get_param("/waypoints")
-        # self.pancake = rospy.get_param("/pancake_location") #position of pancake in camera frame
-        # self.spatula = rospy.get_param("/spatula_location") #position of spatula in camera frame
-        # self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
-        #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
-        
         self.link0_atag()
-
-        #self.robot_atag = rospy.get_param("/robot_atag") #position of april tag of known distance from robot center in camera frame
 
         self.add_work_table()
         self.add_base_table()
@@ -89,31 +80,24 @@ class ManipulatorControl:
 
         ## Cartesian Threshold ##
         lowerf = rospy.get_param("/franka_control/collision_config/lower_force_thresholds_nominal")
+        logdebug("got first param")
         # lowert = rospy.get_param("/franka_control/collision_config/lower_torque_thresholds_nominal")
         lowert = [40, 40, 40, 40, 40, 40, 40]
         # lowertnew = [i=40 for i in lowert]
         # rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
         upperf = rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
+        logdebug("got second param")
         # uppert = rospy.get_param("/franka_control/collision_config/upper_torque_thresholds_nominal")
         # uppertnew = [i=40 for i in uppert]
         rospy.set_param("/franka_control/collision_config/lower_torque_thresholds_nominal", lowert)
+        logdebug("set first param")
         rospy.set_param("/franka_control/collision_config/upper_torque_thresholds_nominal", lowert)
-        # /franka_control/collision_config/lower_force_thresholds_nominal
-        # /franka_control/collision_config/lower_torque_thresholds_nominal
-        # /franka_control/collision_config/upper_force_thresholds_nominal
-        # /franka_control/collision_config/upper_torque_thresholds_nominal
+        logdebug("set second param")
 
         self.torque = rospy.ServiceProxy('/franka_control/set_force_torque_collision_behavior', SetForceTorqueCollisionBehavior)
+        logdebug("set torque it")
         self.torque(lowert, lowert, lowerf, upperf)
-        # /franka_control/set_force_torque_collision_behavior
 
-
-        # Listener
-        # listen = tf.TransformListener()
-        # listen.waitForTransform('/camera_color_optical_frame','/table_tag',rospy.Time(), rospy.Duration(4.0))
-        # (trans, rot) = listen.lookupTransform('/camera_color_optical_frame','/table_tag',rospy.Time(0))
-        # self.robot_atag = trans
-        # self.robot_atag_q = rot
         self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
         
 
@@ -190,7 +174,9 @@ class ManipulatorControl:
         self.un_rotation = [-1*rot[0], -1*rot[1], -1*rot[2],-1*rot[3]]
 
     def dyn_tf(self, event=None):
+        # logdebug("dyn made it")
         self.align_camera()
+        # logdebug("camera aligned")
         self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
         # logdebug(self.bottle)
         broadcaster = tf2_ros.TransformBroadcaster()
