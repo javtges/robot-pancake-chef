@@ -20,6 +20,8 @@ class ImageProcessing:
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
         rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
         rospy.set_param("/pancaked", True)
+        self.point_counter = 0
+        self.point_matrix = np.zeros((4,2),np.int)
 
         rospy.logerr('subscribed')
 
@@ -47,6 +49,20 @@ class ImageProcessing:
             self.rgb_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2RGB)
             self.grayscale_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2GRAY)
 
+            # while self.point_counter < 4:
+                
+            #     for x in range(4):
+            #         cv2.circle(self.grayscale_image,(self.point_matrix[x][0],self.point_matrix[x][1]),3,(0,255,0),cv2.FILLED)
+                
+            #     # Showing original image
+            #     cv2.imshow("Original Image ",self.grayscale_image)
+            #     # Mouse click event on original image
+            #     cv2.setMouseCallback("Original Image ", self.mouse_coords)
+            #     # Printing updated point matrix
+            #     print(self.point_matrix)
+            #     # Refreshing window all time
+            #     cv2.waitKey(1)               
+
             self.find_bottle_location()
 
             try:
@@ -61,6 +77,12 @@ class ImageProcessing:
         except CvBridgeError:
             print(CvBridgeError())
             rospy.logerr("bad")
+
+    def mouse_coords(self,event,x,y,flags,params):
+        # Left button mouse click event opencv
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.point_matrix[counter] = x,y
+            self.point_counter += 1
 
     def get_intrinsics(self, camera_info):
         self.intr = rs.intrinsics()
@@ -96,24 +118,28 @@ class ImageProcessing:
             cv2.rectangle(self.rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
 
             M = cv2.moments(cnt)
-            cx = int(M['m10']/M['m00'])
-            cy = int(M['m01']/M['m00'])
+            self.cx = int(M['m10']/M['m00'])
+            self.cy = int(M['m01']/M['m00'])
 
-            cv2.circle(self.rgb_image, (cx,cy), 4, (255,0,0), 3)
+            cv2.circle(self.rgb_image, (self.cx,self.cy), 4, (255,0,0), 3)
 
-            result = self.get_xyz_from_image(self.depth_image, cx, cy)
-
-            rospy.set_param("/bottle_location", result)
+            result = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
     def find_pancake_location(self):
         print("finding pancake?")
+        # self.pancake_pos = rospy.get_param("/saved_pancake_pose")
+        self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
+
+        self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, self.pancake_pos)
+        print(self.pancake_pos_pixel)
+
+        cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80, (0,0,255), 3)
+        print('corcle')
 
 
 
     def get_xyz_from_image(self,depth_image, x,y):
-
         result = rs.rs2_deproject_pixel_to_point(self.intr, [x,y], depth_image[y,x])
-        print(result)
         return result 
 
 if __name__ == '__main__':
