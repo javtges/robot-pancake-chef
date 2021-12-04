@@ -418,12 +418,6 @@ class ManipulatorControl:
         # self.arm_move_group.go()
         # self.arm_move_group.stop()
 
-        # tipping down - originally 0.07
-        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
-        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four+0.11, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
-        self.arm_move_group.go()
-        self.arm_move_group.stop()
-
         # self.spatula_pose = self.arm_move_group.get_current_pose()
 
         # tipping up
@@ -459,12 +453,39 @@ class ManipulatorControl:
         self.ee_pose.pose.position.x = self.pancake_pose.position.x
         waypoints.append(deepcopy(self.ee_pose.pose))
 
+        moveit_robot_state = self.robot.get_current_state()
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+        # self.arm_move_group.execute(plan, wait="True")
+
+        if fraction == 1.0:
+            self.arm_move_group.execute(plan, wait="True")
+        else:
+            logdebug("makis :(")
+
+        # tipping down - originally 0.07
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four+0.11, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
     
         self.pancake_pose.position.y -= 0.40 - .03
         #self.pancake_pose.pose.position.y -= 0.40 
         # pose.position.z += 0.20
         # waypoints.append(deepcopy(self.pancake_pose.pose))
         waypoints.append(deepcopy(self.pancake_pose))
+
+        waypoints = []
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+        # self.arm_move_group.execute(plan, wait="True")
+
+        if fraction == 1.0:
+            self.arm_move_group.execute(plan, wait="True")
+        else:
+            logdebug("sakis :(")
 
         # self.arm_move_group.set_pose_target(self.pancake_pose)
         # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
@@ -477,12 +498,23 @@ class ManipulatorControl:
         # waypoints.append(deepcopy(self.pancake_pose.pose))
         waypoints.append(deepcopy(self.pancake_pose))
 
+        waypoints = []
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+        # self.arm_move_group.execute(plan, wait="True")
+
+        if fraction == 1.0:
+            self.arm_move_group.execute(plan, wait="True")
+        else:
+            logdebug("takis :(")
+
         #self.pancake_pose.pose.position.z += 0.10
         self.pancake_pose.position.z += 0.10 + .015
         #waypoints.append(deepcopy(self.pancake_pose.pose))
         waypoints.append(deepcopy(self.pancake_pose))
 
-        moveit_robot_state = self.robot.get_current_state()
+        waypoints = []
 
         (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
         plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
