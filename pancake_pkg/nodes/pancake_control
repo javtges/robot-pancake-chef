@@ -347,6 +347,9 @@ class ManipulatorControl:
         pose = self.get_pose('spatula')
         logdebug(pose)
 
+        if pose.position.z <= .06 + 0.035:
+            pose.position.z = 0.065 + 0.035
+
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
         self.pivot(-3*pi/8)
@@ -356,15 +359,26 @@ class ManipulatorControl:
         self.extend(.30,-2)
 
         logdebug(pose)
-        self.arm_move_group.set_pose_target(pose)
-        success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
-        self.arm_move_group.execute(trajectory_message, wait=True)
-        self.arm_move_group.stop()
-        self.arm_move_group.clear_pose_targets()
+        # self.arm_move_group.set_pose_target(pose)
+        # success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
+        # self.arm_move_group.execute(trajectory_message, wait=True)
+        # self.arm_move_group.stop()
+        # self.arm_move_group.clear_pose_targets()
+
+        waypoints = []
+        
+        waypoints.append(deepcopy(pose))
+
+        moveit_robot_state = self.robot.get_current_state()
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.4, 0.4)
+        self.arm_move_group.execute(plan, wait="True")
         
         #self.spin(self.grasp_offset)
 
-        self.saved_spatula_traj = trajectory_message
+        # self.saved_spatula_traj = trajectory_message
+        self.saved_spatula_traj = plan
 
         # self.grasp(.005,.001,.001,.1,100)
         self.grasp(0.01,0.005,0.005,0.3,500)
@@ -444,7 +458,12 @@ class ManipulatorControl:
 
         (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
         plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
-        self.arm_move_group.execute(plan, wait="True")
+        # self.arm_move_group.execute(plan, wait="True")
+
+        if fraction == 1.0:
+            self.arm_move_group.execute(plan, wait="True")
+        else:
+            logdebug("noooo :(")
 
         # # sliding forward
         # one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
