@@ -26,6 +26,7 @@ class ImageProcessing:
 
         self.point_counter = 0
         self.point_matrix = np.zeros((4,2),np.int)
+        self.first_frame_after_pour = True
 
         rospy.logerr('subscribed')
 
@@ -101,13 +102,15 @@ class ImageProcessing:
             #     cv2.waitKey(1)               
 
             self.find_bottle_location()
-
             
             self.pancake_flag = rospy.get_param("/pancaked")
             if self.pancake_flag:
                 self.find_pancake_location()
-            # except:
-            #     pass
+
+            self.flip_flag = rospy.get_param("/flipped")
+            if self.flip_flag:
+                self.find_lift_location()
+                rospy.set_param("/flipped", False)
 
             self.show_video("test",self.rgb_image)
 
@@ -201,6 +204,7 @@ class ImageProcessing:
         # self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
         ###############
+        # Set up a tf broadcaster to find the pancake position in the camera frame
         static_broadcaster = tf2_ros.StaticTransformBroadcaster()
         pancake_world_tf = TransformStamped()
         pancake_world_tf.header.stamp = rospy.Time.now()
@@ -220,6 +224,7 @@ class ImageProcessing:
 
 
         ###########
+        # Listen and find the coordinates of the pancake
 
         try:
             listen = TransformListener()
@@ -228,8 +233,8 @@ class ImageProcessing:
 
             self.pancake_pos_cam_x = trans[0]
             self.pancake_pos_cam_y = trans[1]
-            self.pancake_pos_cam_z = trans[2]
-            rospy.logdebug("pancake to camera transformed successfully")
+            self.pancake_pos_cam_z = 0.05
+            rospy.logdebug("pancake to camera transformed successfully?")
             
         except:
             rospy.logerr("it's doomed")
@@ -237,32 +242,75 @@ class ImageProcessing:
         rospy.sleep(0.2)
 
         ############
+        # Find the pixel of the pancake using RS2
 
         self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, [self.pancake_pos_cam_x, self.pancake_pos_cam_y, self.pancake_pos_cam_z])
         rospy.logdebug("made pixel correctly")
         
+        # Make a black mask
         black_mask = np.zeros((720, 1280), np.uint8)
 
+        # Draw a circle in the mask and RGB image
         cv2.circle(black_mask, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80,255, -1)
-
         self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80, (255,0,0), 3)
-
         rospy.logdebug("drew both circles")
 
+        # Mask the images
         masked_img = cv2.bitwise_and(black_mask, self.grayscale_image)
-
         self.show_video("pancake?",masked_img)
-
+        
         canny_pancake = cv2.Canny(masked_img,50,150, 5, L2gradient = True)
 
         contours, heir = cv2.findContours(canny_pancake, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         num_contours = len(contours)
+        print(num_contours)
 
-        if num_contours > 40:
+        if self.first_frame_after_pour:
+            rospy.logdebug("the first frame after pouring")
+            self.orig_contour_count = num_contours
+            self.first_frame_after_pour = False
+
+        if num_contours > self.orig_contour_count * 1.5:
             rospy.set_param("/flip_time", True)
+            rospy.set_param("/pancaked", False)
 
-        return
+    def find_lift_location(self):
+        
+        black_mask = np.zeros((720, 1280), np.uint8)
+
+        # Perform the same masking as before
+        cv2.circle(black_mask, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80,255, -1)
+        self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 150, (255,0,0), 3)
+
+        masked_img_lift = cv2.bitwise_and(black_mask, self.grayscale_image)
+
+        rospy.logdebug("drew a circle where we last saw the pancake, lifting this time")
+        
+        canny_pancake_lift = cv2.Canny(masked_img_lift,50,150, 5, L2gradient = True)
+
+        contours, heir = cv2.findContours(canny_pancake_lift, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        hull_list = []
+
+        for i in range(len(contours)):
+            hull = cv2.convexHull(contours[i])
+            hull_list.append(hull)
+
+        self.contours_by_area = sorted(contours, key=cv2.contourArea, reverse=True)
+        self.hulls_by_area = sorted(hull_list, key=cv2.contourArea, reverse=True)
+
+        M = cv2.moments(self.hulls_by_area[0])
+        cx = int(M['m10']/M['m00'])
+        cy = int(M['m01']/M['m00'])
+
+        self.rgb_image = cv2.circle(self.rgb_image, (cx,cy), 3, (255,0,0), 3)
+
+        self.lift_coords = self.get_xyz_from_image(self.depth_image, cx, cy)
+
+        rospy.set_param("/lift_location", self.lift_coords)
+
+
 
     def get_xyz_from_image(self,depth_image, x,y):
         """ TODO
