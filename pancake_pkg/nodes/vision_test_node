@@ -29,11 +29,32 @@ class ImageProcessing:
 
         rospy.logerr('subscribed')
 
-    def show_video(self,name,ros_image):
+    def show_video(self, name, ros_image):
+        """ TODO
+
+        TODO
+
+        Args:
+            name (TODO) : TODO
+            ros_image (TODO) : TODO
+        Returns:
+            None
+        """
         cv2.imshow(name,ros_image)
         cv2.waitKey(3)
 
+        return
+
     def convert_depth_image(self,ros_image):
+        """ TODO
+        
+        TODO
+
+        Args:
+            ros_image (TODO) : TODO
+        Returns:
+            None
+        """
         bridge = CvBridge()
         # Use cv_bridge() to convert the ROS image to OpenCV format
         try:
@@ -44,8 +65,20 @@ class ImageProcessing:
         except CvBridgeError:
             print(CvBridgeError())
             rospy.logerr("bad")
+        
+        return
 
     def convert_color_image(self,ros_image):
+        """ TODO
+
+        TODO
+
+        Args:
+            ros_image (TODO) : TODO
+        Returns:
+            None
+        """
+
         bridge = CvBridge()
         try:
             self.bgr_image = bridge.imgmsg_to_cv2(ros_image)
@@ -81,6 +114,8 @@ class ImageProcessing:
         except CvBridgeError:
             print(CvBridgeError())
             rospy.logerr("bad")
+        
+        return
 
     # def mouse_coords(self,event,x,y,flags,params):
     #     # Left button mouse click event opencv
@@ -89,6 +124,14 @@ class ImageProcessing:
             # self.point_counter += 1
 
     def get_intrinsics(self, camera_info):
+        """ TODO
+        TODO
+
+        Args:
+            camera_info (TODO) : TODO
+        Returns:
+            None
+        """
         self.intr = rs.intrinsics()
         self.intr.width = camera_info.width
         self.intr.height = camera_info.height
@@ -99,37 +142,60 @@ class ImageProcessing:
         self.intr.model = rs.distortion.none
         self.intr.coeffs = [0.0, 0.0, 0.0, 0.0, 0.0]
 
-    def find_bottle_location(self):            
+        return
 
-            red_low = np.array([80,10,10])
-            red_up = np.array([255,255,255])
+    def find_bottle_location(self):  
+        """ Finds the location of the bottle
 
-            self.redmask = cv2.inRange(self.hsv_image,red_low,red_up)
+        TODO
 
-            self.masked_image = cv2.bitwise_and(self.hsv_image,self.hsv_image,mask=self.redmask)
+        Args:
+            None
+        Returns:
+            None
+        """          
 
-            self.masked_image_gray = cv2.cvtColor(self.masked_image, cv2.COLOR_RGB2GRAY)
-            
-            ret, thresh = cv2.threshold(self.masked_image_gray, 130,255, cv2.THRESH_BINARY)
+        red_low = np.array([80,10,10])
+        red_up = np.array([255,255,255])
 
-            contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        self.redmask = cv2.inRange(self.hsv_image,red_low,red_up)
 
-            areas = [cv2.contourArea(c) for c in contours]
-            max_index = np.argmax(areas)
-            cnt=contours[max_index]
+        self.masked_image = cv2.bitwise_and(self.hsv_image,self.hsv_image,mask=self.redmask)
 
-            x,y,w,h = cv2.boundingRect(cnt)
-            cv2.rectangle(self.rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
+        self.masked_image_gray = cv2.cvtColor(self.masked_image, cv2.COLOR_RGB2GRAY)
+        
+        ret, thresh = cv2.threshold(self.masked_image_gray, 130,255, cv2.THRESH_BINARY)
 
-            M = cv2.moments(cnt)
-            self.cx = int(M['m10']/M['m00'])
-            self.cy = int(M['m01']/M['m00'])
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-            cv2.circle(self.rgb_image, (self.cx,self.cy), 4, (255,0,0), 3)
+        areas = [cv2.contourArea(c) for c in contours]
+        max_index = np.argmax(areas)
+        cnt=contours[max_index]
 
-            result = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
+        x,y,w,h = cv2.boundingRect(cnt)
+        cv2.rectangle(self.rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
+
+        M = cv2.moments(cnt)
+        self.cx = int(M['m10']/M['m00'])
+        self.cy = int(M['m01']/M['m00'])
+
+        cv2.circle(self.rgb_image, (self.cx,self.cy), 4, (255,0,0), 3)
+
+        result = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
+
+        return
 
     def find_pancake_location(self):
+        """ Finds the location of the pancake
+
+        TODO
+
+        Args:
+            None
+        Returns:
+            None
+        """
+
         print("finding pancake?")
         self.pancake_pos = rospy.get_param("/saved_pancake_pose")
         # self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
@@ -196,7 +262,21 @@ class ImageProcessing:
         if num_contours > 40:
             rospy.set_param("/flip_time", True)
 
+        return
+
     def get_xyz_from_image(self,depth_image, x,y):
+        """ TODO
+
+        TODO
+
+        Args:
+            depth_image (float) : TODO
+            x (float) : TODO
+            y (float) : TODO
+        Returns:
+            TODO
+        """
+        
         result = rs.rs2_deproject_pixel_to_point(self.intr, [x,y], depth_image[y,x])
         return result 
 
