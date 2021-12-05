@@ -89,21 +89,7 @@ class ImageProcessing:
             self.bgr_image = bridge.imgmsg_to_cv2(ros_image)
             self.hsv_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2HSV)
             self.rgb_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2RGB)
-            self.grayscale_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2GRAY)
-
-            # while self.point_counter < 4:
-                
-            #     for x in range(4):
-            #         cv2.circle(self.grayscale_image,(self.point_matrix[x][0],self.point_matrix[x][1]),3,(0,255,0),cv2.FILLED)
-                
-            #     # Showing original image
-            #     cv2.imshow("Original Image ",self.grayscale_image)
-            #     # Mouse click event on original image
-            #     cv2.setMouseCallback("Original Image ", self.mouse_coords)
-            #     # Printing updated point matrix
-            #     print(self.point_matrix)
-            #     # Refreshing window all time
-            #     cv2.waitKey(1)               
+            self.grayscale_image = cv2.cvtColor(self.bgr_image, cv2.COLOR_BGR2GRAY)           
 
             self.find_bottle_location()
             
@@ -118,7 +104,7 @@ class ImageProcessing:
 
             self.fliptime = rospy.get_param("/flip_time")
             if self.fliptime:
-                self.rgb_image = cv2.circle(self.rgb_image, (self.cx_flip,self.cy_flip), 3, (255,255,0), 3)
+                self.rgb_image = cv2.circle(self.rgb_image, (self.cx,self.cy), 3, (255,255,0), 3)
 
             self.show_video("test",self.rgb_image)
 
@@ -187,12 +173,12 @@ class ImageProcessing:
         cv2.rectangle(self.rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
 
         M = cv2.moments(cnt)
-        self.cx = int(M['m10']/M['m00'])
-        self.cy = int(M['m01']/M['m00'])
+        self.cx_bottle = int(M['m10']/M['m00'])
+        self.cy_bottle = int(M['m01']/M['m00'])
 
-        cv2.circle(self.rgb_image, (self.cx,self.cy), 4, (255,0,0), 3)
+        cv2.circle(self.rgb_image, (self.cx_bottle,self.cy_bottle), 4, (255,0,0), 3)
 
-        result = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
+        result = self.get_xyz_from_image(self.depth_image, self.cx_bottle, self.cy_bottle)
 
         return
 
@@ -209,63 +195,6 @@ class ImageProcessing:
 
         print("finding pancake?")
         self.pancake_pos = rospy.get_param("/saved_pancake_pose")
-        # self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
-
-        ###############
-        # # Set up a tf broadcaster to find the pancake position in the camera frame
-        # static_broadcaster = tf2_ros.StaticTransformBroadcaster()
-        # pancake_world_tf = TransformStamped()
-        # pancake_world_tf.header.stamp = rospy.Time.now()
-        # pancake_world_tf.header.frame_id = "world" 
-        # pancake_world_tf.child_frame_id = "pancake_position"
-        # pancake_world_tf.transform.translation.x = self.pancake_pos[0]
-        # pancake_world_tf.transform.translation.y = self.pancake_pos[1]
-        # pancake_world_tf.transform.translation.z = 0.05
-        # #link0_atag_tf.transform.rotation = self.robot_atag_q
-        # #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
-        # q2 = transformations.quaternion_from_euler(0, 0, 0)
-        # rospy.logdebug_once("pancake in world frame")
-        # # rospy.logerr(self.pancake_pos[0])
-        # pancake_world_tf.transform.rotation.w = 1
-        # static_broadcaster.sendTransform(pancake_world_tf)
-
-        ###############
-
-
-        ###########
-        # Listen and find the coordinates of the pancake
-
-        # try:
-        #     listen = TransformListener()
-        #     listen.waitForTransform('/pancake_position','/world',rospy.Time(), rospy.Duration(4.0))
-        #     (trans, rot) = listen.lookupTransform('/pancake_position', '/world', rospy.Time(0))
-
-        #     self.pancake_pos_cam_x = trans[0]
-        #     self.pancake_pos_cam_y = trans[1]
-        #     self.pancake_pos_cam_z = trans[2]
-        #     rospy.logdebug_once("pancake to camera transformed successfully?")
-        #     rospy.logerr_once([self.pancake_pos_cam_x, self.pancake_pos_cam_y, self.pancake_pos_cam_z])
-
-
-        #     # [0.0322859394923905, -0.1464460560533358, -0.32270352659259516]
-
-            
-        # except:
-        #     rospy.logerr("it's doomed")
-
-        # rospy.sleep(0.2)
-
-        ############
-        # Find the pixel of the pancake using RS2
-
-        # self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, [self.pancake_pos_cam_x - 0.0322859394923905, self.pancake_pos_cam_y - -0.1464460560533358, self.pancake_pos_cam_z - -0.32270352659259516])
-        
-        # self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, [self.pancake_pos_cam_x - 0, self.pancake_pos_cam_y - 0, self.pancake_pos_cam_z - -0.32270352659259516])
-        
-        # rospy.logdebug_once(self.pancake_pos_pixel)
-        # self.pancake_pos_pixel[0] = -1*self.pancake_pos_pixel[0]
-        # self.pancake_pos_pixel[1] = -1*self.pancake_pos_pixel[1]
-        # rospy.logdebug_once("made pixel correctly")
         
         # Make a black mask
         black_mask = np.zeros((720, 1280), np.uint8)
@@ -273,16 +202,19 @@ class ImageProcessing:
         # rospy.logdebug(self.pancake_pos_pixel)
 
         # Draw a circle in the mask and RGB image
-        cv2.circle(black_mask, (445,471), 110 ,255, -1)
-        self.rgb_image = cv2.circle(self.rgb_image, (445,471), 110, (255,0,0), 3)
+        cv2.circle(black_mask, (445,471), 180 ,255, -1)
+        self.rgb_image = cv2.circle(self.rgb_image, (445,471), 180, (255,0,0), 3)
 
         # cv2.circle(black_mask, (int(self.pancake_pos_pixel[1]), int(self.pancake_pos_pixel[0])), 80,255, -1)
         # self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[1]), int(self.pancake_pos_pixel[0])), 80, (255,0,0), 3)
 
         rospy.logdebug_once("drew both circles")
 
+        thresh,dst = cv2.threshold(self.grayscale_image, 100, 255, cv2.THRESH_BINARY)
+
+
         # Mask the images
-        masked_img = cv2.bitwise_and(black_mask, self.grayscale_image)
+        masked_img = cv2.bitwise_and(black_mask, dst)
         self.show_video("pancake?",masked_img)
         
         canny_pancake = cv2.Canny(masked_img,50,150, 5, L2gradient = True)
@@ -298,6 +230,49 @@ class ImageProcessing:
         if self.first_frame_after_pour == False:
             if rospy.Time.now() > self.starttime + self.cooktime:
                 rospy.logdebug("TIME TO FLIP, TIMED OUT")
+
+                hull_list = []
+
+                for i in range(len(contours)):
+                    hull = cv2.convexHull(contours[i])
+                    hull_list.append(hull)
+
+                self.contours_by_area_flip = sorted(contours, key=cv2.contourArea, reverse=True)
+                self.hulls_by_area_flip = sorted(hull_list, key=cv2.contourArea, reverse=True)
+
+                M = cv2.moments(self.hulls_by_area_flip[1])
+                self.cx = int(M['m10']/M['m00'])
+                self.cy = int(M['m01']/M['m00'])
+
+                self.rgb_image = cv2.circle(self.rgb_image, (self.cx,self.cy), 3, (255,255,0), 3)
+
+                self.flip_coords = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
+
+                rospy.set_param("/flip_location", self.flip_coords)
+                rospy.logerr(self.flip_coords)
+                rospy.set_param("/flip_time", True)
+                rospy.set_param("/pancaked", False)
+
+                ###########################
+
+                rospy.logdebug("testing broadcaster flip")
+                static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+                flip_tf = TransformStamped()
+                flip_tf.header.stamp = rospy.Time.now()
+                flip_tf.header.frame_id = "camera_color_optical_frame"
+                flip_tf.child_frame_id = "flip_location"
+                flip_tf.transform.translation.x = self.flip_coords[0]/1000
+                flip_tf.transform.translation.y = self.flip_coords[1]/1000
+                flip_tf.transform.translation.z = self.flip_coords[2]/1000
+                #link0_atag_tf.transform.rotation = self.robot_atag_q
+                #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+                q2 = transformations.quaternion_from_euler(0, 0, 0)
+                rospy.logdebug(q2)
+                flip_tf.transform.rotation.w = 1
+                static_broadcaster.sendTransform(flip_tf)
+                rospy.logdebug("broadcasting flip")
+
+                ##############################
 
         if self.first_frame_after_pour:
             rospy.logdebug("the first frame after pouring")
@@ -324,31 +299,54 @@ class ImageProcessing:
             self.hulls_by_area_flip = sorted(hull_list, key=cv2.contourArea, reverse=True)
 
             M = cv2.moments(self.hulls_by_area_flip[1])
-            self.cx_flip = int(M['m10']/M['m00'])
-            self.cy_flip = int(M['m01']/M['m00'])
+            self.cx = int(M['m10']/M['m00'])
+            self.cy = int(M['m01']/M['m00'])
 
-            self.rgb_image = cv2.circle(self.rgb_image, (self.cx_flip,self.cy_flip), 3, (255,255,0), 3)
+            self.rgb_image = cv2.circle(self.rgb_image, (self.cx,self.cy), 3, (255,255,0), 3)
 
-            self.flip_coords = self.get_xyz_from_image(self.depth_image, self.cx_flip, self.cy_flip)
+            self.flip_coords = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
             rospy.set_param("/flip_location", self.flip_coords)
             rospy.logerr(self.flip_coords)
             rospy.set_param("/flip_time", True)
             rospy.set_param("/pancaked", False)
 
-        
+            #########################
+
+            rospy.logdebug("testing broadcaster flip")
+            static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+            flip_tf = TransformStamped()
+            flip_tf.header.stamp = rospy.Time.now()
+            flip_tf.header.frame_id = "camera_color_optical_frame"
+            flip_tf.child_frame_id = "flip_location"
+            flip_tf.transform.translation.x = self.flip_coords[0]/1000
+            flip_tf.transform.translation.y = self.flip_coords[1]/1000
+            flip_tf.transform.translation.z = self.flip_coords[2]/1000
+            #link0_atag_tf.transform.rotation = self.robot_atag_q
+            #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+            q2 = transformations.quaternion_from_euler(0, 0, 0)
+            rospy.logdebug(q2)
+            flip_tf.transform.rotation.w = 1
+            static_broadcaster.sendTransform(flip_tf)
+            rospy.logdebug("broadcasting flip")
+
+            ##########################
 
     def find_lift_location(self):
         
+        rospy.logerr("finding lift location")
+
         black_mask = np.zeros((720, 1280), np.uint8)
 
         # Perform the same masking as before
-        cv2.circle(black_mask, (445,471), 110, 255, -1)
-        self.rgb_image = cv2.circle(self.rgb_image, (445,471), 110, (255,0,0), 3)
+        cv2.circle(black_mask, (self.cx,self.cy), 180, 255, -1)
+        self.rgb_image = cv2.circle(self.rgb_image, (self.cx,self.cy), 180, (0,0,255), 3)
 
-        masked_img_lift = cv2.bitwise_and(black_mask, self.grayscale_image)
+        thresh,dst = cv2.threshold(self.grayscale_image, 100, 255, cv2.THRESH_BINARY)
 
-        rospy.logdebug("drew a circle where we last saw the pancake, lifting this time")
+        masked_img_lift = cv2.bitwise_and(black_mask, dst)
+
+        rospy.logdebug("drew a circle where we last saw the pancake, lifting this time. also thresholding works?")
         
         canny_pancake_lift = cv2.Canny(masked_img_lift,50,150, 5, L2gradient = True)
 
@@ -367,14 +365,32 @@ class ImageProcessing:
         self.hulls_by_area_lift = sorted(hull_list, key=cv2.contourArea, reverse=True)
 
         M = cv2.moments(self.hulls_by_area_lift[1])
-        cx = int(M['m10']/M['m00'])
-        cy = int(M['m01']/M['m00'])
+        self.cx = int(M['m10']/M['m00'])
+        self.cy = int(M['m01']/M['m00'])
 
-        self.rgb_image = cv2.circle(self.rgb_image, (cx,cy), 3, (255,0,0), 3)
+        self.rgb_image = cv2.circle(self.rgb_image, (self.cx,self.cy), 3, (255,0,0), 3)
 
-        self.lift_coords = self.get_xyz_from_image(self.depth_image, cx, cy)
+        self.lift_coords = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
         rospy.set_param("/flip_location", self.lift_coords)
+        rospy.logerr("updated flip location")
+
+        rospy.logdebug("testing broadcaster lift")
+        static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        lift_tf = TransformStamped()
+        lift_tf.header.stamp = rospy.Time.now()
+        lift_tf.header.frame_id = "camera_color_optical_frame"
+        lift_tf.child_frame_id = "lift_location"
+        lift_tf.transform.translation.x = self.lift_coords[0]/1000
+        lift_tf.transform.translation.y = self.lift_coords[1]/1000
+        lift_tf.transform.translation.z = self.lift_coords[2]/1000
+        #link0_atag_tf.transform.rotation = self.robot_atag_q
+        #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        q2 = transformations.quaternion_from_euler(0, 0, 0)
+        rospy.logdebug(q2)
+        lift_tf.transform.rotation.w = 1
+        static_broadcaster.sendTransform(lift_tf)
+        rospy.logdebug("broadcasting lift")
 
 
 

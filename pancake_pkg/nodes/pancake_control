@@ -105,6 +105,7 @@ class ManipulatorControl:
         self.flip = rospy.Service("flip", Empty, self.flip_callback)
         self.pour = rospy.Service("pour", Empty, self.pour_callback)
         self.lift = rospy.Service("lift", Empty, self.lift_callback)
+        self.make_pancakes = rospy.Service("make_pancakes", Empty, self.make_pancakes_callback)
         self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
 
         self.link0_atag()
@@ -117,7 +118,7 @@ class ManipulatorControl:
 
         self.lift_waypoints = []
 
-        self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
+        self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
         
 
     def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
@@ -214,12 +215,9 @@ class ManipulatorControl:
         Returns:
             None
         """
-
-        
-
         flag = rospy.get_param("/flip_time")
         self.align_camera()
-        logdebug("aligning camera?")
+        # logdebug("aligning camera?")
 
         if flag:
             logdebug("trying to find the pancake")
@@ -571,7 +569,7 @@ class ManipulatorControl:
             logdebug("makis :(")
     
 
-        self.pancake_pose.position.y -= 0.43#0.40 #- .03
+        self.pancake_pose.position.y -= 0.45#0.40 #- .03
         # self.pancake_pose.position.z -= 0.0025   # old one
         self.pancake_pose.position.z = 0.19423
         # self.pancake_pose.orientation.x = 0.58062
@@ -900,7 +898,7 @@ class ManipulatorControl:
 
         self.ee_pose = self.arm_move_group.get_current_pose()
         #self.ee_pose.pose.position.x = self.pancake_pose.pose.position.x
-        self.ee_pose.pose.position.z = pose.position.z + 0.05
+        self.ee_pose.pose.position.z = pose.position.z + 0.06
         waypoints.append(deepcopy(self.ee_pose.pose))
 
         moveit_robot_state = self.robot.get_current_state()
@@ -919,7 +917,7 @@ class ManipulatorControl:
 
         rospy.set_param('/pancaked',True)
 
-        self.make_pancakes()
+        # self.make_pancakes()
 
         return EmptyResponse()
 
@@ -935,21 +933,39 @@ class ManipulatorControl:
 		"""
 
         if name == "pancake": 
-            #obj_pos = self.bottle
+            
             listen = TransformListener()
             while True:
                 try:
-                    listen.waitForTransform('/panda_link0','/pancake',rospy.Time(), rospy.Duration(4.0))
+                    self.dyn_tf()
+                    logdebug(rospy.get_param("/flip_location"))
+                    listen.waitForTransform('/panda_link0','/flip_location',rospy.Time(), rospy.Duration(4.0))
                     break
                 except:
                     logerror("Where is the pancake transform bro???")
                     continue
             
-            (trans, rot) = listen.lookupTransform('/panda_link0', '/pancake', rospy.Time(0))
+            (trans, rot) = listen.lookupTransform('/panda_link0', '/flip_location', rospy.Time(0))
 
             logdebug(trans)
 
-            # Added ee_offset values here, may or may not work!!!!!
+            obj_pos = trans
+
+        elif name == "finished_pancake": 
+            #obj_pos = self.bottle
+            listen = TransformListener()
+            while True:
+                try:
+                    listen.waitForTransform('/panda_link0','/lift_location',rospy.Time(), rospy.Duration(4.0))
+                    break
+                except:
+                    logerror("Do you even lift bro???")
+                    continue
+            
+            (trans, rot) = listen.lookupTransform('/panda_link0', '/lift_location', rospy.Time(0))
+
+            logdebug(trans)
+
             obj_pos = trans
         
         elif name == "spatula": 
@@ -1086,7 +1102,7 @@ class ManipulatorControl:
 
         self.ee_pose = self.arm_move_group.get_current_pose()
         #self.ee_pose.pose.position.x = self.pancake_pose.pose.position.x
-        self.ee_pose.pose.position.x = self.pancake_pose.position.x
+        self.ee_pose.pose.position.x = self.pancake_pose.position.x + 0.02
         waypoints.append(deepcopy(self.ee_pose.pose))
 
         moveit_robot_state = self.robot.get_current_state()
@@ -1101,7 +1117,7 @@ class ManipulatorControl:
 
         logdebug("Moving to position left of pancake")
         #self.pancake_pose.pose.position.y -= 0.40 
-        self.pancake_pose.position.y -= 0.40 #- .03
+        self.pancake_pose.position.y -= 0.45 #- .03
         self.pancake_pose.position.z = 0.19423
         # pose.position.z += 0.20
         #waypoints.append(deepcopy(self.pancake_pose.pose))
@@ -1160,12 +1176,15 @@ class ManipulatorControl:
 
         return EmptyResponse()
 
-    def make_pancakes(self, event=None):
+    def make_pancakes_callback(self, event=None):
+        self.pour_callback()
+
         flip_status = rospy.get_param("/flip_time")
         while flip_status != True:
             flip_status = rospy.get_param("/flip_time")
+        rospy.logdebug("time to flip")
 
-        self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
+        self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
 
         self.pancake_coord = self.get_pose("pancake")
 
@@ -1175,14 +1194,17 @@ class ManipulatorControl:
         
         logdebug('Goodnight')
 
-        rospy.sleep(5)
+        rospy.sleep(10)
 
         logdebug('Good morning')
 
-        self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
+        self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
 
+        rospy.sleep(10)
 
         self.pancake_lift_coord = self.get_pose("pancake")
+
+        logdebug(self.pancake_lift_coord)
         self.lift_callback()
         
 def main():
