@@ -171,6 +171,7 @@ include_directories(
 catkin_install_python(PROGRAMS
   nodes/pancake_control
   nodes/vision_test_node
+  nodes/cartesian_control
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

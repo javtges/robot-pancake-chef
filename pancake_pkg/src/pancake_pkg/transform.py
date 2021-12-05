@@ -8,19 +8,17 @@ PARAMETERS:
 
 """
 
-
 from math import inf, pi, sin, cos, tan, atan2, sqrt
 import numpy as np
 
 # Function to compute position of the object in robot frame
 class TransformToRobot():
     def __init__(self, name, obj_pos):
-        """Manages setup for the class.
+        """ Manages setup for the class.
 
 		Args:
-            name - name of the object (pancake, spatula, bottle)
-            obj_pos - position of the object in the camera frame
-
+            name (string) : The name of the object (pancake, spatula, bottle)
+            obj_pos (numpy array) : The position of the object in the camera frame
 		Returns:
 			None
 		"""
@@ -29,12 +27,12 @@ class TransformToRobot():
         self.link0_ratag_tf = np.array([0.1143, 0.1111, 0]) # THESE ARE ARBITRARILY SET RIGHT NOW
 
     def compute(self):
-        """Computes position of object with respect to link0.
+        """ Computes position of object with respect to link0.
 
 		Args:
             None
 		Returns:
-			pose_list - list of 7 values corresponding to a pose
+			list[float] : list of 7 values corresponding to a pose
 		"""
         pose = np.zeros(7)
         pose[0:3] = self.obj_pos

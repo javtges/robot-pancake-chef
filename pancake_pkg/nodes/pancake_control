@@ -4,10 +4,16 @@
 Flipping pancakes 
 
 SERVICES:
-    + /flip (Empty) ~ has the robot move to each waypoint and flip the pancake
-
+    + /pour (Empty) ~ commands the robot to pour batter from a bottle onto the griddle
+    + /flip (Empty) ~ commands the robot to use a spatula to flip a pancake on the griddle
+    + /lift (Empty) ~ commands the robot to use a spatula to lift the pancake off the griddle
+ACTIONS:
+    + /grasp (GraspAction) ~ action that commands the franka grippers to hold the bottle
 PARAMETERS:
-    + /waypoints ~ waypoints for the robot to follow depending on task
+    + work_table_pose ~ the pose of the work table
+    + work_table_dims ~ the dimensions of the work table
+    + base_table_pose ~ the pose of the base table
+    + base_table_dims ~ the dimensions of the work table
 
 """
 #from numpy.core.defchararray import _unary_op_dispatcher
@@ -99,8 +105,7 @@ class ManipulatorControl:
         self.pour = rospy.Service("pour", Empty, self.pour_callback)
         self.lift = rospy.Service("lift", Empty, self.lift_callback)
         self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
-        self.marker_pub = rospy.Publisher("markers", MarkerArray, queue_size=10, latch=True)
-        
+
         self.link0_atag()
 
         self.add_work_table()
@@ -113,8 +118,6 @@ class ManipulatorControl:
 
         self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
         
-
-
 
     def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
         """ Waits until changes are reflected in object lists 
@@ -150,6 +153,15 @@ class ManipulatorControl:
         return False
 
     def link0_atag(self):
+        """ The transform from the table to the world
+
+        Broadcasts the transform from the table's april tag to the world frame
+        
+        Args:
+            None
+        Returns:
+            None
+        """
         static_broadcaster = tf2_ros.StaticTransformBroadcaster()
         link0_atag_tf = TransformStamped()
         link0_atag_tf.header.stamp = rospy.Time.now()
@@ -165,11 +177,16 @@ class ManipulatorControl:
         link0_atag_tf.transform.rotation.w = 1
         static_broadcaster.sendTransform(link0_atag_tf)
 
-    """rosrun tf static_transform_publisher -.1143 -.1111 0 0 0 0 1 table_tag world 10
-                                            -0.1143 -0.1111 0 0 0 0 1
-    """
-
     def align_camera(self):
+        """ Aligns the camera using the transform tree
+
+        Looks up the transformation from the world to the camera and sets offsets
+        
+        Args:
+            None
+        Returns:
+            None
+        """
         broadcaster = tf2_ros.TransformBroadcaster()
         tf_time = rospy.Time.now()
         listen = TransformListener()
@@ -187,6 +204,15 @@ class ManipulatorControl:
         self.un_rotation = [-1*rot[0], -1*rot[1], -1*rot[2],-1*rot[3]]
 
     def dyn_tf(self, event=None):
+        """ The timer callback function.
+
+        Broadcasts the transform from the camera to the bottle
+        
+        Args:
+            event (None)
+        Returns:
+            None
+        """
         # logdebug("dyn made it")
         self.align_camera()
         # logdebug("camera aligned")
@@ -213,7 +239,16 @@ class ManipulatorControl:
         # logdebug(atag_bottle_tf)
         broadcaster.sendTransform(atag_bottle_tf)
 
-    def ee_offset(self,pose):
+    def ee_offset(self, pose):
+        """ Offsets the pose due to the end-effector
+
+        Function that takes in a pose and offsets it according to the offset of the end-effector
+
+        Args:
+            pose (geometry_msgs/Pose) : the pose to be offset by
+        Returns:
+            geometry_msgs/Pose : the offsetted pose
+        """
         pose.position.x += 0.02
         pose.position.y += 0.0358
         pose.position.z += 0
@@ -225,6 +260,10 @@ class ManipulatorControl:
 
         Places table collision object based on the world frame to the left of robot
 
+        Args:
+            None
+        Returns:
+            None
         """
         table_pose = PoseStamped()
         table_pose.header.frame_id = "world"
@@ -240,7 +279,10 @@ class ManipulatorControl:
         """ Adds base table to planning scene 
 
         Places table collision object based on the world frame to front of the robot
-
+        Args:
+            None
+        Returns:
+            None
         """
         table_pose = PoseStamped()
         table_pose.header.frame_id = "world"
@@ -256,6 +298,11 @@ class ManipulatorControl:
         """ Adds camera stand to planning scene 
 
         Places camera stand collision object based on the world frame to right of the robot
+
+        Args:
+            None
+        Returns:
+            None
 
         """
         table_pose = PoseStamped()
@@ -273,6 +320,11 @@ class ManipulatorControl:
 
         Places camera stand collision object based on the world frame to left of the robot
 
+        Args:
+            None
+        Returns:
+            None
+
         """
         table_pose = PoseStamped()
         table_pose.header.frame_id = "world"
@@ -289,6 +341,10 @@ class ManipulatorControl:
 
         Places camera collision object based on the world frame to right of the robot
 
+        Args:
+            None
+        Returns:
+            None
         """
         table_pose = PoseStamped()
         table_pose.header.frame_id = "world"
@@ -300,31 +356,65 @@ class ManipulatorControl:
         while not self.wait_for_state_update(table_name, box_is_known=True):
             self.scene.add_box(table_name, table_pose, size=(0.5, 0.0254, 0.0254))
 
-
     def open_gripper(self):
+        """ Opens the grippers
+
+        Sets the target pose of the gripper to OPEN
+
+        Args:
+            None
+        Returns:
+            None
+        """
         self.gripper_move_group.set_named_target('open')
         self.gripper_move_group.go()
         self.gripper_move_group.stop()
         self.gripper_move_group.clear_pose_targets()
     
     def close_gripper(self):
+        """ Closes the grippers
+
+        Sets the target pose of the grippers to CLOSE
+
+        Args:
+            None
+        Returns:
+            None
+        """
         self.gripper_move_group.set_named_target('close')
         self.gripper_move_group.go()
         self.gripper_move_group.stop()
         self.gripper_move_group.clear_pose_targets()
 
-    def go_to_ready(self):
+        return
 
+    def go_to_ready(self):
+        """ Commands the robot arm to the ready position
+
+        Sets the target pose of the arm move group to READY
+
+        Args:
+            None
+        Returns:
+            None
+
+        """
         self.arm_move_group.set_named_target('ready')
         self.arm_move_group.go()
         self.arm_move_group.stop()
+        return
         
     def grasp(self, width, epsilon_inner, epsilon_outer, speed, force):
         """ Uses actions to close gripper 
         Specifies specific width and force with which to grip objects 
         Args: 
-            width : width of specified object
-            force : force for gripping specified object
+            width (float) : width of specified objectAligns the camera by looking at the transform tree
+            epsilon_inner (float) : 
+            epsilon_outer (float) :
+            speed (float) :
+            force (float) : force for gripping specified object
+        Returns:
+            None
         
         """
         self.client.wait_for_server()
@@ -337,8 +427,17 @@ class ManipulatorControl:
         self.client.send_goal(action)
         self.client.wait_for_result(rospy.Duration(15.0))
 
+        return
+
     def flip_spatula(self):
-        """ Moves single joint based on current position 
+        """ Moves single joint based on current position
+
+        Commands the last joint to rotate in order to flip the spatula
+
+        Args:
+            None
+        Returns:
+            None
         """
         self.arm_move_group.set_max_velocity_scaling_factor(0.95)
         self.arm_move_group.set_max_acceleration_scaling_factor(1.0)
@@ -351,14 +450,17 @@ class ManipulatorControl:
         self.arm_move_group.go()
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
+        return
 
     def flip_callback(self, event=None):
         """ Callback function for the flip service 
+        
         Moves the robot to follow waypoints in the parameter server to flip the pancake
+        
         Args: 
             event (Empty) : Event holder for empty input
         Returns:
-            EmptyResponse (Empty) : empty response        
+            EmptyResponse : empty response
         """
         self.open_gripper()
 
@@ -562,31 +664,84 @@ class ManipulatorControl:
         return EmptyResponse()
 
     def tip(self,joint5):
+        """ Tips the end of the arm
+
+        Commands joint 5 in order to tip the arm to a user-specified position
+
+        Args:
+            joint5 (float) : the angle to command joint 5 to
+        Returns:
+            None
+        """
         one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
         self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': joint5, 'panda_joint6': six, 'panda_joint7': seven})
         self.arm_move_group.go()
         self.arm_move_group.stop()
 
-    def spin(self,joint7):
+        return
 
+    def spin(self,joint7):
+        """ Spins the end of the arm
+
+        Commands joint 7 in order to spin the gripper to a user-specified position
+
+        Args:
+            joint7 (float) : the angle to command joint 7 to
+        Returns:
+            None
+        """
         one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
         self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': joint7})
         self.arm_move_group.go()
         self.arm_move_group.stop()
 
+        return
+
     def pivot(self,joint1):
+        """ Pivots the arm
+
+        Commands joint 1 to pivot the arm to a user-specified position
+
+        Args:
+            joint1 (float) : the angle to command joint 1 to
+        Returns:
+            None
+        """
         one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
         self.arm_move_group.set_joint_value_target({'panda_joint1': joint1, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
         self.arm_move_group.go()
         self.arm_move_group.stop()
 
-    def extend(self,joint2, joint4):
+        return
+
+    def extend(self, joint2, joint4):
+        """ Extends the arm
+
+        Commands joint 2 and joint 4 to extend the arm to a user-specified position
+
+        Args:
+            joint2 (float) : the angle to command joint 2 to
+            joint4 (float) : the angle to command joint 4 to
+        Returns:
+            None
+        """
         one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
         self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': joint2, 'panda_joint3': three, 'panda_joint4': joint4, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
         self.arm_move_group.go()
         self.arm_move_group.stop()
 
-    def pour_callback(self,empty):
+        return
+
+    def pour_callback(self, empty=None):
+        """ The pour callback function
+
+        Commands the robot to pick up the bottle and pour batter onto the griddle
+
+        Args:
+            event (Empty) : Event holder for empty input
+        Returns:
+            EmptyResponse : empty response
+        """
 
         self.open_gripper()
         pose = self.get_pose('bottle')
@@ -750,15 +905,17 @@ class ManipulatorControl:
 
         self.go_to_ready()
 
-        return []
+        return EmptyResponse()
 
     def get_pose(self, name):
-        """Computes pose of arm to reach object.
+        """ Gets the pose of a user-specified object
+        
+        Computes computes the pose necessary for the arm to reach the user-specified object
 
 		Args:
-            name - name of the object
+            name (string) : the object to get the pose of
 		Returns:
-			pose - pose of the arm to reach object
+			geometry_msgs/Pose : the pose for the end-effector
 		"""
 
         if name == "pancake": 
@@ -831,21 +988,16 @@ class ManipulatorControl:
         # pose = self.ee_offset(pose)
         return pose
     
-    def lift_callback(self, req):
+    def lift_callback(self, event=None):
         """ Callback function for lift service
 
-        Commands the robot to follow a series of waypoints to lift the pancake out of the pan
+        Commands the robot to follow a series of waypoints to lift the pancake off of the griddle
 
         Args:
-            req
-
+            event (Empty) : Event holder for empty object
         Returns:
-            EmptyResponse (Empty) : empty response
+            EmptyResponse : empty response
         """
-        #pose = self.get_pose('spatula')
-        # self.open_gripper()
-        # pose = self.get_pose('spatula')
-        # logdebug(pose)
 
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
