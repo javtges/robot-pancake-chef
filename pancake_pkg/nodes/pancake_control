@@ -340,21 +340,13 @@ class ManipulatorControl:
     def flip_spatula(self):
         """ Moves single joint based on current position 
         """
-        self.arm_move_group.set_max_velocity_scaling_factor(.9)
-        self.arm_move_group.set_max_acceleration_scaling_factor(.9)
+        self.arm_move_group.set_max_velocity_scaling_factor(0.95)
+        self.arm_move_group.set_max_acceleration_scaling_factor(1.0)
         self.arm_move_group.remember_joint_values("panda_arm")
         joints = self.arm_move_group.get_remembered_joint_values()
         joint = joints["panda_arm"]
-        # joint 7 values are between -166 and 166
-        # logdebug(joint)
-        # if joint[-1] > 0:
-        #     joint[-1] -= pi
-        # else:
-        #     joint[-1] += pi
-        # joint[-1] = (3*pi)/4
-        joint[-1] = (2*pi)/4
-        # joint[-1] = -2.7
-        # logdebug(joint)
+        joint[-1] = pi/2
+        # joint[-1] = -2.8
         self.arm_move_group.set_joint_value_target(joint)
         self.arm_move_group.go()
         self.arm_move_group.stop()
@@ -406,16 +398,16 @@ class ManipulatorControl:
         self.saved_spatula_traj = trajectory_message
         # self.saved_spatula_traj = plan
 
-        # self.grasp(.005,.001,.001,.1,100)
-        self.grasp(0.01,0.005,0.005,0.3,500)
+        # self.grasp(0.01,0.005,0.005,0.3,500)
+        self.grasp(0.01,0.005,0.005,0.3,150)
         # self.tip(1.27)
         # self.pancake
 
-        # # horizontal
-        # one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
-        # self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven+0.07})
-        # self.arm_move_group.go()
-        # self.arm_move_group.stop()
+        # tipping down - originally 0.07
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four+0.11, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
 
         # self.spatula_pose = self.arm_move_group.get_current_pose()
 
@@ -456,51 +448,59 @@ class ManipulatorControl:
 
         (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
         plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
-        # self.arm_move_group.execute(plan, wait="True")
 
         if fraction == 1.0:
             self.arm_move_group.execute(plan, wait="True")
         else:
             logdebug("makis :(")
-
-        # tipping down - originally 0.07
-        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
-        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four+0.11, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
-        self.arm_move_group.go()
-        self.arm_move_group.stop()
     
-        self.pancake_pose.position.y -= 0.40 - .03
+
+        self.pancake_pose.position.y -= 0.43#0.40 #- .03
+        # self.pancake_pose.position.z -= 0.0025   # old one
+        self.pancake_pose.position.z = 0.19423
+        # self.pancake_pose.orientation.x = 0.58062
+        # self.pancake_pose.orientation.y = 0.55831
+        # self.pancake_pose.orientation.z = 0.40936
+        # self.pancake_pose.orientation.w = -0.42848
+
+        self.pancake_pose.orientation.x = -0.7497995993015408
+        self.pancake_pose.orientation.y = -0.2924575586456358
+        self.pancake_pose.orientation.z = -0.21369497944833332
+        self.pancake_pose.orientation.w = 0.5537179724705165
+
         #self.pancake_pose.pose.position.y -= 0.40 
         # pose.position.z += 0.20
         # waypoints.append(deepcopy(self.pancake_pose.pose))
-        waypoints.append(deepcopy(self.pancake_pose))
-
         waypoints = []
+        waypoints.append(deepcopy(self.pancake_pose))
 
         (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
         plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
         # self.arm_move_group.execute(plan, wait="True")
+        # self.arm_move_group.execute(plan, wait="True")
+        self.arm_move_group.execute(plan, wait="True")
 
-        if fraction == 1.0:
-            self.arm_move_group.execute(plan, wait="True")
-        else:
-            logdebug("sakis :(")
+        # if fraction >= 0.9:
+        #     self.arm_move_group.execute(plan, wait="True")
+        # else:
+        #     logdebug("sakis :(")
 
-        # self.arm_move_group.set_pose_target(self.pancake_pose)
-        # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        # plan = self.arm_move_group.execute(traj_msg, wait=True)
+        # one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        # self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven+pi/4})
+        # self.arm_move_group.go()
         # self.arm_move_group.stop()
-        # self.arm_move_group.clear_pose_targets()
+
+        logdebug(self.arm_move_group.get_current_pose())
 
         #self.pancake_pose.pose.position.y += 0.03
-        self.pancake_pose.position.y += 0.03
+        self.pancake_pose.position.y += 0.08 + 0.03
+        # self.pancake_pose.position.z += 0.0005
+        waypoints = []
         # waypoints.append(deepcopy(self.pancake_pose.pose))
         waypoints.append(deepcopy(self.pancake_pose))
 
-        waypoints = []
-
         (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
-        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.8, 0.8)
         # self.arm_move_group.execute(plan, wait="True")
 
         if fraction == 1.0:
@@ -509,11 +509,10 @@ class ManipulatorControl:
             logdebug("takis :(")
 
         #self.pancake_pose.pose.position.z += 0.10
-        self.pancake_pose.position.z += 0.10 + .015
+        self.pancake_pose.position.z += (0.10 + .015)/2
         #waypoints.append(deepcopy(self.pancake_pose.pose))
-        waypoints.append(deepcopy(self.pancake_pose))
-
         waypoints = []
+        waypoints.append(deepcopy(self.pancake_pose))
 
         (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
         plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
@@ -521,16 +520,33 @@ class ManipulatorControl:
 
         if fraction == 1.0:
             self.arm_move_group.execute(plan, wait="True")
+            # self.flip_spatula()
         else:
-            logdebug("noooo :(")
+            logdebug("please re-plan")
+
+        waypoints = []
+
+        self.ee_pose = self.arm_move_group.get_current_pose()
+        #self.ee_pose.pose.position.x = self.pancake_pose.pose.position.x
+        self.ee_pose.pose.position.x = self.pancake_pose.position.x + 0.05
+        waypoints.append(deepcopy(self.ee_pose.pose))
+
+        moveit_robot_state = self.robot.get_current_state()
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+
+        if fraction == 1.0:
+            self.arm_move_group.execute(plan, wait="True")
+            self.flip_spatula()
+        else:
+            logdebug("please re-plan")
 
         # # sliding forward
         # one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
         # self.arm_move_group.set_joint_value_target({'panda_joint1': one + pi/4, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four - .05, 'panda_joint5': five, 'panda_joint6': six + .07, 'panda_joint7': seven})
         # self.arm_move_group.go()
         # self.arm_move_group.stop()
-
-        self.flip_spatula()
 
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
         self.arm_move_group.set_max_acceleration_scaling_factor(0.1)
@@ -632,10 +648,27 @@ class ManipulatorControl:
         # self.grasp(.06,.005,.005,.3, 20)
         self.grasp(.065,.01,.01,.3, 35)
 
-        print("Back to home")
+        # print("Back to home")
         # self.go_to_ready()
 
         # self.spin(-pi/4) #jackson added to turn bottle away from robot
+
+        waypoints = []
+
+        self.ee_pose = self.arm_move_group.get_current_pose()
+        #self.ee_pose.pose.position.x = self.pancake_pose.pose.position.x
+        self.ee_pose.pose.position.z = pose.position.z + 0.01
+        waypoints.append(deepcopy(self.ee_pose.pose))
+
+        moveit_robot_state = self.robot.get_current_state()
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+
+        if fraction == 1.0:
+            self.arm_move_group.execute(plan, wait="True")
+        else:
+            logdebug("please re-plan")
 
         self.pivot(.96)
 
@@ -669,7 +702,7 @@ class ManipulatorControl:
 
         self.grasp(.045,.01,.01,.3, 10)    
 
-        rospy.sleep(6)
+        rospy.sleep(12)
 
         # self.grasp(.06,.005,.005,.3, 20)
 
@@ -695,6 +728,23 @@ class ManipulatorControl:
         # self.arm_move_group.clear_pose_targets()
 
         self.open_gripper()
+
+        waypoints = []
+
+        self.ee_pose = self.arm_move_group.get_current_pose()
+        #self.ee_pose.pose.position.x = self.pancake_pose.pose.position.x
+        self.ee_pose.pose.position.z = pose.position.z + 0.05
+        waypoints.append(deepcopy(self.ee_pose.pose))
+
+        moveit_robot_state = self.robot.get_current_state()
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+
+        if fraction == 1.0:
+            self.arm_move_group.execute(plan, wait="True")
+        else:
+            logdebug("please re-plan")
 
         self.pivot(pi/4)
 
@@ -737,7 +787,7 @@ class ManipulatorControl:
             logdebug(trans)
             # atag_offset = [0.05,-0.08,-0.12]
             # atag_offset = [0.05,-0.08,-0.114]
-            atag_offset = [0.05,-0.08,-0.114]
+            atag_offset = [0.05,-0.068,-0.102]
 
             obj_pos = [trans[0] + self.camera_offset[0] + atag_offset[0], trans[1] + self.camera_offset[1] + atag_offset[1], trans[2] + self.camera_offset[1] + atag_offset[2]]
             #obj_pos = [trans[0] + self.camera_offset[0], trans[1] + self.camera_offset[1], trans[2] + self.camera_offset[1]]
@@ -747,8 +797,16 @@ class ManipulatorControl:
         elif name == "bottle": 
             #obj_pos = self.bottle
             listen = TransformListener()
-            listen.waitForTransform('/panda_link0','/bottle_tag',rospy.Time(), rospy.Duration(4.0))
+            while True:
+                try:
+                    listen.waitForTransform('/panda_link0','/bottle_tag',rospy.Time(), rospy.Duration(4.0))
+                    break
+                except:
+                    logerror("Where is the transform bro???")
+                    continue              
+            
             (trans, rot) = listen.lookupTransform('/panda_link0', '/bottle_tag', rospy.Time(0))
+            
             # try:
             #     listen.waitForTransform('/panda_link0','/bottle_tag',rospy.Time(), rospy.Duration(4.0))
             #     (trans, rot) = listen.lookupTransform('/panda_link0', '/bottle_tag', rospy.Time(0))
@@ -799,24 +857,14 @@ class ManipulatorControl:
 
         # self.arm_move_group.set_pose_target(pose)
         # success_flag, trajectory_message, planning_time, error_code = self.arm_move_group.plan()
-        self.arm_move_group.execute(self.saved_spatula_traj, wait=True)
-        self.arm_move_group.stop()
-        self.arm_move_group.clear_pose_targets()
+        # self.arm_move_group.execute(self.saved_spatula_traj, wait=True)
+        # self.arm_move_group.stop()
+        # self.arm_move_group.clear_pose_targets()
 
         one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
         self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four+0.11, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven})
         self.arm_move_group.go()
         self.arm_move_group.stop()
-
-        # self.arm_move_group.set_pose_target(pose)
-        # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        # plan = self.arm_move_group.execute(traj_msg, wait=True)
-        # self.arm_move_group.stop()
-        # self.arm_move_group.clear_pose_targets()
-
-        # print("Grasping")
-        # # self.grasp(.06,.005,.005,.1,20)
-        # self.grasp(0.01,0.0001,0.0001,0.1,300)
 
         try:
             pancake_copy = deepcopy(self.saved_pancake_pose.pose)
@@ -847,51 +895,74 @@ class ManipulatorControl:
         self.ee_pose.pose.position.x = self.pancake_pose.position.x
         waypoints.append(deepcopy(self.ee_pose.pose))
 
-        print("Moving to position left of pancake")
+        moveit_robot_state = self.robot.get_current_state()
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+
+        if fraction == 1.0:
+            self.arm_move_group.execute(plan, wait="True")
+        else:
+            logdebug("makis :(")
+
+        logdebug("Moving to position left of pancake")
         #self.pancake_pose.pose.position.y -= 0.40 
-        self.pancake_pose.position.y -= 0.40 - .03
+        self.pancake_pose.position.y -= 0.40 #- .03
+        self.pancake_pose.position.z = 0.19423
         # pose.position.z += 0.20
         #waypoints.append(deepcopy(self.pancake_pose.pose))
         # waypoints.append(deepcopy(self.pancake_pose))
 
-        # self.arm_move_group.set_pose_target(self.pancake_pose)
-        # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        # plan = self.arm_move_group.execute(traj_msg, wait=True)
-        # self.arm_move_group.stop()
-        # self.arm_move_group.clear_pose_targets()
+        self.pancake_pose.orientation.x = -0.7497995993015408
+        self.pancake_pose.orientation.y = -0.2924575586456358
+        self.pancake_pose.orientation.z = -0.21369497944833332
+        self.pancake_pose.orientation.w = 0.5537179724705165
 
-        print("Moving to position right of pancake")
-        #self.pancake_pose.pose.position.y += 0.03
-        self.pancake_pose.position.y += 0.03
-        #waypoints.append(deepcopy(self.pancake_pose.pose))
+        waypoints = []
         waypoints.append(deepcopy(self.pancake_pose))
 
-        # self.arm_move_group.set_pose_target(pose)
-        # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        # plan = self.arm_move_group.execute(traj_msg, wait=True)
-        # self.arm_move_group.stop()
-        # self.arm_move_group.clear_pose_targets()
-
-        print("Lifting spatula up")
-        #self.pancake_pose.pose.position.z += 0.10
-        self.pancake_pose.position.z += 0.10
-        #waypoints.append(deepcopy(self.pancake_pose.pose))
-        waypoints.append(deepcopy(self.pancake_pose))
-
-        # self.arm_move_group.set_pose_target(pose)
-        # (success_flag, traj_msg, planning_time, error_code) = self.arm_move_group.plan()
-        # plan = self.arm_move_group.execute(traj_msg, wait=True)
-        # self.arm_move_group.stop()
-        # self.arm_move_group.clear_pose_targets()
-
-        moveit_robot_state = self.robot.get_current_state()
-
-        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 20.0)  #25.0
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
         plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+        # self.arm_move_group.execute(plan, wait="True")
+        # self.arm_move_group.execute(plan, wait="True")
+        self.arm_move_group.execute(plan, wait="True")
+
+        logdebug("Moving to position right of pancake")
+        #self.pancake_pose.pose.position.y += 0.03
+        self.pancake_pose.position.y += 0.03 + 0.02 + 0.16
+        waypoints = []
+        #waypoints.append(deepcopy(self.pancake_pose.pose))
+        waypoints.append(deepcopy(self.pancake_pose))
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+        # self.arm_move_group.execute(plan, wait="True")
+
+        if fraction == 1.0:
+            self.arm_move_group.execute(plan, wait="True")
+        else:
+            logdebug("takis :(")
+
+        logdebug("Lifting spatula up")
+        #self.pancake_pose.pose.position.z += 0.10
+        self.pancake_pose.position.z += 0.10 + .015
+        waypoints = []
+        #waypoints.append(deepcopy(self.pancake_pose.pose))
+        waypoints.append(deepcopy(self.pancake_pose))
+
+        (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
+        plan=self.arm_move_group.retime_trajectory(moveit_robot_state,plan,0.5, 0.5)
+        # self.arm_move_group.execute(plan, wait="True")
+
         if fraction == 1.0:
             self.arm_move_group.execute(plan, wait="True")
         else:
             logdebug("noooo :(")
+
+        one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
+        self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven+pi/2})
+        self.arm_move_group.go()
+        self.arm_move_group.stop()
 
         return EmptyResponse()
         
