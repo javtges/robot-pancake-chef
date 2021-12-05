@@ -134,37 +134,54 @@ class ImageProcessing:
         self.pancake_pos = rospy.get_param("/saved_pancake_pose")
         # self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
+        ###############
+        static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        pancake_world_tf = TransformStamped()
+        pancake_world_tf.header.stamp = rospy.Time.now()
+        pancake_world_tf.header.frame_id = "world" 
+        pancake_world_tf.child_frame_id = "pancake_position"
+        pancake_world_tf.transform.translation.x = self.pancake_pos[0]
+        pancake_world_tf.transform.translation.y = self.pancake_pos[1]
+        pancake_world_tf.transform.translation.z = self.pancake_pos[2]
+        #link0_atag_tf.transform.rotation = self.robot_atag_q
+        #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        q2 = transformations.quaternion_from_euler(0, 0, 0)
+        logdebug(q2)
+        link0_atag_tf.transform.rotation.w = 1
+        static_broadcaster.sendTransform(pancake_world_tf)
+
+        ###############
+
+
         ###########
 
-        listen = TransformListener()
-        listen.waitForTransform('/world','/camera_color_optical_frame',rospy.Time(), rospy.Duration(4.0))
-        (trans, rot) = listen.lookupTransform('/world', '/camera_color_optical_frame', rospy.Time(0))
-
-        tf_buffer = tf2_ros.Buffer()
-
-        pose_stamped = tf2_geometry_msgs.PoseStamped()
-        pose_stamped.pose = input_pose
-        pose_stamped.header.frame_id = from_frame
-        pose_stamped.header.stamp = rospy.Time.now()
-
         try:
-            # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-            output_pose_stamped = tf_buffer.transform(pose_stamped, to_frame, rospy.Duration(1))
-            return output_pose_stamped.pose
+            listen = TransformListener()
+            listen.waitForTransform('/world','/pancake_position',rospy.Time(), rospy.Duration(4.0))
+            (trans, rot) = listen.lookupTransform('/world', '/pancake_position', rospy.Time(0))
 
+            self.pancake_pos_cam_x = trans[0]
+            self.pancake_pos_cam_y = trans[1]
+            self.pancake_pos_cam_z = trans[2]
+            rospy.logdebug("pancake to camera transformed successfully")
+            
         except:
             rospy.logerr("it's doomed")
 
-        ############
-        print(self.pancake_pos)
+        rospy.sleep(0.2)
 
-        self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, self.pancake_pos)
+        ############
+
+        self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, [self.pancake_pos_cam_x, self.pancake_pos_cam_y, self.pancake_pos_cam_z])
+        rospy.logdebug("made pixel correctly")
         
         black_mask = np.zeros((720, 1280), np.uint8)
 
         cv2.circle(black_mask, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80,255, -1)
 
         self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80, (255,0,0), 3)
+
+        rospy.logdebug("drew both circles")
 
         masked_img = cv2.bitwise_and(black_mask, self.grayscale_image)
 
