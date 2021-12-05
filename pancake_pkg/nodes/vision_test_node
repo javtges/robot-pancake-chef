@@ -9,7 +9,8 @@ import cv2
 import pyrealsense2 as rs
 import tf2_ros
 import tf2_geometry_msgs
-
+from geometry_msgs.msg import TransformStamped
+from tf import transformations, TransformListener
 
 
 class ImageProcessing:
@@ -17,17 +18,20 @@ class ImageProcessing:
     def __init__(self):
         rospy.init_node('vision_test_node',anonymous=True, log_level=rospy.DEBUG)
         rospy.logerr("started the node")
-
+        rospy.sleep(2)
         rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, callback=self.convert_depth_image, queue_size=1)
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
         rospy.Subscriber("/camera/aligned_depth_to_color/camera_info", CameraInfo, callback=self.get_intrinsics, queue_size=1)
-        # rospy.set_param("/pancaked", True)
+        rospy.set_param("/pancaked", False)
+        rospy.set_param("/flipped", False)
+        rospy.set_param("/flip_time", False)
         # rospy.set_param("/saved_pancake_pose", True)
 
         self.point_counter = 0
         self.point_matrix = np.zeros((4,2),np.int)
         self.first_frame_after_pour = True
-
+        self.flag2 = False
+        
         rospy.logerr('subscribed')
 
     def show_video(self, name, ros_image):
@@ -112,6 +116,10 @@ class ImageProcessing:
                 self.find_lift_location()
                 rospy.set_param("/flipped", False)
 
+            self.fliptime = rospy.get_param("/flip_time")
+            if self.fliptime:
+                self.rgb_image = cv2.circle(self.rgb_image, (self.cx_flip,self.cy_flip), 3, (255,255,0), 3)
+
             self.show_video("test",self.rgb_image)
 
         except CvBridgeError:
@@ -169,7 +177,7 @@ class ImageProcessing:
         
         ret, thresh = cv2.threshold(self.masked_image_gray, 130,255, cv2.THRESH_BINARY)
 
-        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         areas = [cv2.contourArea(c) for c in contours]
         max_index = np.argmax(areas)
@@ -204,21 +212,22 @@ class ImageProcessing:
         # self.pancake_pos = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
         ###############
-        # Set up a tf broadcaster to find the pancake position in the camera frame
-        static_broadcaster = tf2_ros.StaticTransformBroadcaster()
-        pancake_world_tf = TransformStamped()
-        pancake_world_tf.header.stamp = rospy.Time.now()
-        pancake_world_tf.header.frame_id = "world" 
-        pancake_world_tf.child_frame_id = "pancake_position"
-        pancake_world_tf.transform.translation.x = self.pancake_pos[0]
-        pancake_world_tf.transform.translation.y = self.pancake_pos[1]
-        pancake_world_tf.transform.translation.z = self.pancake_pos[2]
-        #link0_atag_tf.transform.rotation = self.robot_atag_q
-        #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
-        q2 = transformations.quaternion_from_euler(0, 0, 0)
-        logdebug(q2)
-        link0_atag_tf.transform.rotation.w = 1
-        static_broadcaster.sendTransform(pancake_world_tf)
+        # # Set up a tf broadcaster to find the pancake position in the camera frame
+        # static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        # pancake_world_tf = TransformStamped()
+        # pancake_world_tf.header.stamp = rospy.Time.now()
+        # pancake_world_tf.header.frame_id = "world" 
+        # pancake_world_tf.child_frame_id = "pancake_position"
+        # pancake_world_tf.transform.translation.x = self.pancake_pos[0]
+        # pancake_world_tf.transform.translation.y = self.pancake_pos[1]
+        # pancake_world_tf.transform.translation.z = 0.05
+        # #link0_atag_tf.transform.rotation = self.robot_atag_q
+        # #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+        # q2 = transformations.quaternion_from_euler(0, 0, 0)
+        # rospy.logdebug_once("pancake in world frame")
+        # # rospy.logerr(self.pancake_pos[0])
+        # pancake_world_tf.transform.rotation.w = 1
+        # static_broadcaster.sendTransform(pancake_world_tf)
 
         ###############
 
@@ -226,34 +235,51 @@ class ImageProcessing:
         ###########
         # Listen and find the coordinates of the pancake
 
-        try:
-            listen = TransformListener()
-            listen.waitForTransform('/world','/pancake_position',rospy.Time(), rospy.Duration(4.0))
-            (trans, rot) = listen.lookupTransform('/world', '/pancake_position', rospy.Time(0))
+        # try:
+        #     listen = TransformListener()
+        #     listen.waitForTransform('/pancake_position','/world',rospy.Time(), rospy.Duration(4.0))
+        #     (trans, rot) = listen.lookupTransform('/pancake_position', '/world', rospy.Time(0))
 
-            self.pancake_pos_cam_x = trans[0]
-            self.pancake_pos_cam_y = trans[1]
-            self.pancake_pos_cam_z = 0.05
-            rospy.logdebug("pancake to camera transformed successfully?")
+        #     self.pancake_pos_cam_x = trans[0]
+        #     self.pancake_pos_cam_y = trans[1]
+        #     self.pancake_pos_cam_z = trans[2]
+        #     rospy.logdebug_once("pancake to camera transformed successfully?")
+        #     rospy.logerr_once([self.pancake_pos_cam_x, self.pancake_pos_cam_y, self.pancake_pos_cam_z])
+
+
+        #     # [0.0322859394923905, -0.1464460560533358, -0.32270352659259516]
+
             
-        except:
-            rospy.logerr("it's doomed")
+        # except:
+        #     rospy.logerr("it's doomed")
 
-        rospy.sleep(0.2)
+        # rospy.sleep(0.2)
 
         ############
         # Find the pixel of the pancake using RS2
 
-        self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, [self.pancake_pos_cam_x, self.pancake_pos_cam_y, self.pancake_pos_cam_z])
-        rospy.logdebug("made pixel correctly")
+        # self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, [self.pancake_pos_cam_x - 0.0322859394923905, self.pancake_pos_cam_y - -0.1464460560533358, self.pancake_pos_cam_z - -0.32270352659259516])
+        
+        # self.pancake_pos_pixel = rs.rs2_project_point_to_pixel(self.intr, [self.pancake_pos_cam_x - 0, self.pancake_pos_cam_y - 0, self.pancake_pos_cam_z - -0.32270352659259516])
+        
+        # rospy.logdebug_once(self.pancake_pos_pixel)
+        # self.pancake_pos_pixel[0] = -1*self.pancake_pos_pixel[0]
+        # self.pancake_pos_pixel[1] = -1*self.pancake_pos_pixel[1]
+        # rospy.logdebug_once("made pixel correctly")
         
         # Make a black mask
         black_mask = np.zeros((720, 1280), np.uint8)
 
+        # rospy.logdebug(self.pancake_pos_pixel)
+
         # Draw a circle in the mask and RGB image
-        cv2.circle(black_mask, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80,255, -1)
-        self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80, (255,0,0), 3)
-        rospy.logdebug("drew both circles")
+        cv2.circle(black_mask, (445,471), 110 ,255, -1)
+        self.rgb_image = cv2.circle(self.rgb_image, (445,471), 110, (255,0,0), 3)
+
+        # cv2.circle(black_mask, (int(self.pancake_pos_pixel[1]), int(self.pancake_pos_pixel[0])), 80,255, -1)
+        # self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[1]), int(self.pancake_pos_pixel[0])), 80, (255,0,0), 3)
+
+        rospy.logdebug_once("drew both circles")
 
         # Mask the images
         masked_img = cv2.bitwise_and(black_mask, self.grayscale_image)
@@ -261,27 +287,64 @@ class ImageProcessing:
         
         canny_pancake = cv2.Canny(masked_img,50,150, 5, L2gradient = True)
 
-        contours, heir = cv2.findContours(canny_pancake, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, heir = cv2.findContours(canny_pancake, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         num_contours = len(contours)
-        print(num_contours)
+        rospy.logdebug(num_contours)
+
+        self.show_video("canny?", canny_pancake)
+
+        self.now = rospy.Time.now()
+        if self.first_frame_after_pour == False:
+            if rospy.Time.now() > self.starttime + self.cooktime:
+                rospy.logdebug("TIME TO FLIP, TIMED OUT")
 
         if self.first_frame_after_pour:
             rospy.logdebug("the first frame after pouring")
+            self.starttime = rospy.Time.now()
+            self.cooktime = rospy.Duration(60)
             self.orig_contour_count = num_contours
             self.first_frame_after_pour = False
 
-        if num_contours > self.orig_contour_count * 1.5:
+        if num_contours > self.orig_contour_count * 1.2:
+            self.flag2 = True
+            
+            rospy.logdebug("TIME TO FLIP?")
+
+        if self.flag2 and num_contours < 70:
+            rospy.logdebug("really oughta flip now")
+
+            hull_list = []
+
+            for i in range(len(contours)):
+                hull = cv2.convexHull(contours[i])
+                hull_list.append(hull)
+
+            self.contours_by_area_flip = sorted(contours, key=cv2.contourArea, reverse=True)
+            self.hulls_by_area_flip = sorted(hull_list, key=cv2.contourArea, reverse=True)
+
+            M = cv2.moments(self.hulls_by_area_flip[1])
+            self.cx_flip = int(M['m10']/M['m00'])
+            self.cy_flip = int(M['m01']/M['m00'])
+
+            self.rgb_image = cv2.circle(self.rgb_image, (self.cx_flip,self.cy_flip), 3, (255,255,0), 3)
+
+            self.flip_coords = self.get_xyz_from_image(self.depth_image, self.cx_flip, self.cy_flip)
+
+            rospy.set_param("/flip_location", self.flip_coords)
+            rospy.logerr(self.flip_coords)
             rospy.set_param("/flip_time", True)
             rospy.set_param("/pancaked", False)
+
+        
 
     def find_lift_location(self):
         
         black_mask = np.zeros((720, 1280), np.uint8)
 
         # Perform the same masking as before
-        cv2.circle(black_mask, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80,255, -1)
-        self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 150, (255,0,0), 3)
+        cv2.circle(black_mask, (445,471), 110, 255, -1)
+        self.rgb_image = cv2.circle(self.rgb_image, (445,471), 110, (255,0,0), 3)
 
         masked_img_lift = cv2.bitwise_and(black_mask, self.grayscale_image)
 
@@ -289,7 +352,10 @@ class ImageProcessing:
         
         canny_pancake_lift = cv2.Canny(masked_img_lift,50,150, 5, L2gradient = True)
 
-        contours, heir = cv2.findContours(canny_pancake_lift, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        self.show_video("canny?", canny_pancake_lift)
+
+
+        contours, heir = cv2.findContours(canny_pancake_lift, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         hull_list = []
 
@@ -297,10 +363,10 @@ class ImageProcessing:
             hull = cv2.convexHull(contours[i])
             hull_list.append(hull)
 
-        self.contours_by_area = sorted(contours, key=cv2.contourArea, reverse=True)
-        self.hulls_by_area = sorted(hull_list, key=cv2.contourArea, reverse=True)
+        self.contours_by_area_lift = sorted(contours, key=cv2.contourArea, reverse=True)
+        self.hulls_by_area_lift = sorted(hull_list, key=cv2.contourArea, reverse=True)
 
-        M = cv2.moments(self.hulls_by_area[0])
+        M = cv2.moments(self.hulls_by_area_lift[1])
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
 
@@ -308,7 +374,7 @@ class ImageProcessing:
 
         self.lift_coords = self.get_xyz_from_image(self.depth_image, cx, cy)
 
-        rospy.set_param("/lift_location", self.lift_coords)
+        rospy.set_param("/flip_location", self.lift_coords)
 
 
 
