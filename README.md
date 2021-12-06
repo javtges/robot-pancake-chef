@@ -112,3 +112,4 @@ rosservice call /lift
 This service will command the robot to maneuver the modified heat-proof spatula to get the pancake situated on the spatula, then lift it off of the griddle and flip it onto a user's plate.
 
 Upon successful completion of all the services, the user will have delicious, robot-made pancakes courtesy of the Franka Emika Panda robot and team FLIP IT. 
+![flip-3](pancake_pkg/img/flip-3.gif)
