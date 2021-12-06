@@ -12,6 +12,8 @@
     <!-- the vision test launch file -->
     <include file="$(find pancake_pkg)/launch/vision_test.launch"/>
 
+    <node name="vision_test_node" pkg="pancake_pkg" type="vision_test_node" output="screen"/>
+
     <group if="$(arg use_sim)">
         <!-- We do not have a real robot connected, so publish fake joint states via a joint_state_publisher
             MoveIt's fake controller's joint states are considered via the 'source_list' parameter -->
@@ -51,7 +53,7 @@
 
     <!-- yaml files go here -->
     <rosparam command="load" file="$(find pancake_pkg)/config/waypoints.yaml"/>
-    <!-- <rosparam command="load" file="$(find pancake_pkg)/config/scene_params.yaml"/> -->
+    <rosparam command="load" file="$(find pancake_pkg)/config/scene_params.yaml"/>
     <!-- <rosparam command="load" file="$(find pancake_pkg)/config/camera.yaml"/> -->
     <!-- <rosparam command="load" file="$(find pancake_pkg)/config/pancake_tags.yaml"/> -->
     <!-- <rosparam command="load" file="$(find pancake_pkg)/config/pancake_tag_settings.yaml"/> -->

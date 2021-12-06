@@ -172,6 +172,7 @@ catkin_install_python(PROGRAMS
   nodes/pancake_control
   nodes/vision_test_node
   nodes/cartesian_control
+  test/pancake_test
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -215,3 +216,8 @@ catkin_install_python(PROGRAMS
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+if(CATKIN_ENABLE_TESTING)
+    find_package(rostest REQUIRED)
+    add_rostest(test/pancake.test)
+endif()

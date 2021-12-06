@@ -25,7 +25,7 @@ import moveit_commander
 import geometry_msgs
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion, TransformStamped, Vector3
 from moveit_commander.conversions import pose_to_list, list_to_pose
-from std_srvs.srv import Empty, EmptyResponse, Trigger
+from std_srvs.srv import Empty, EmptyResponse
 import actionlib
 from franka_gripper.msg import GraspAction, GraspGoal, GraspEpsilon
 from rospy.core import logdebug, logerror
@@ -99,11 +99,13 @@ class ManipulatorControl:
         self.base_table_dims = rospy.get_param("base_table_dims")
 
         rospy.set_param('/pancaked',False)
+        rospy.set_param("/flipped", False)
 
         # pubs, subs, servs, etc.
         self.flip = rospy.Service("flip", Empty, self.flip_callback)
         self.pour = rospy.Service("pour", Empty, self.pour_callback)
         self.lift = rospy.Service("lift", Empty, self.lift_callback)
+        self.make_pancakes = rospy.Service("make_pancakes", Empty, self.make_pancakes_callback)
         self.client = actionlib.SimpleActionClient("/franka_gripper/grasp", GraspAction)
 
         self.link0_atag()
@@ -116,7 +118,7 @@ class ManipulatorControl:
 
         self.lift_waypoints = []
 
-        self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
+        self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
         
 
     def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
@@ -177,7 +179,7 @@ class ManipulatorControl:
         link0_atag_tf.transform.rotation.w = 1
         static_broadcaster.sendTransform(link0_atag_tf)
 
-    def align_camera(self):
+    def align_camera(self, event=None):
         """ Aligns the camera using the transform tree
 
         Looks up the transformation from the world to the camera and sets offsets
@@ -206,38 +208,43 @@ class ManipulatorControl:
     def dyn_tf(self, event=None):
         """ The timer callback function.
 
-        Broadcasts the transform from the camera to the bottle
+        Broadcasts the transform from the camera to the pancake, when applicable
         
         Args:
             event (None)
         Returns:
             None
         """
-        # logdebug("dyn made it")
+        flag = rospy.get_param("/flip_time")
         self.align_camera()
-        # logdebug("camera aligned")
-        self.bottle = rospy.get_param("/bottle_location") #position of bottle in camera frame
-        # logdebug(self.bottle)
-        broadcaster = tf2_ros.TransformBroadcaster()
-        # Add Odometry to base_footprint in tf
-        tf_time = rospy.Time.now()
-        atag_bottle_tf = TransformStamped()
-        atag_bottle_tf.header.stamp = tf_time
-        atag_bottle_tf.header.frame_id = "camera_color_optical_frame"
-        atag_bottle_tf.child_frame_id = "bottle"
-        # Update x, y, and z positions
-        # atag_bottle_tf.transform.translation.x = (self.bottle[0] - self.robot_atag_q[0])/1000
-        # atag_bottle_tf.transform.translation.y = (self.bottle[1] - self.robot_atag_q[1])/1000
-        # atag_bottle_tf.transform.translation.z = (self.bottle[2] - self.robot_atag_q[2])/1000
-        atag_bottle_tf.transform.translation.x = (self.bottle[0])/1000
-        atag_bottle_tf.transform.translation.y = (self.bottle[1])/1000
-        atag_bottle_tf.transform.translation.z = (self.bottle[2])/1000 #+ 0.3
-        # Quaternion of the angle about the z axis
-        # q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
-        atag_bottle_tf.transform.rotation = Quaternion(*self.un_rotation)
-        # Send the transform
-        # logdebug(atag_bottle_tf)
-        broadcaster.sendTransform(atag_bottle_tf)
+        # logdebug("aligning camera?")
+
+        if flag:
+            logdebug("trying to find the pancake")
+            self.pancake = rospy.get_param("/flip_location") #position of pancake in camera frame
+            logdebug("got the pancake location")
+            broadcaster = tf2_ros.TransformBroadcaster()
+            # Add Odometry to base_footprint in tf
+            tf_time = rospy.Time.now()
+            pancake_tf = TransformStamped()
+            pancake_tf.header.stamp = tf_time
+            pancake_tf.header.frame_id = "camera_color_optical_frame"
+            pancake_tf.child_frame_id = "pancake"
+            # Update x, y, and z positions
+            # atag_bottle_tf.transform.translation.x = (self.bottle[0] - self.robot_atag_q[0])/1000
+            # atag_bottle_tf.transform.translation.y = (self.bottle[1] - self.robot_atag_q[1])/1000
+            # atag_bottle_tf.transform.translation.z = (self.bottle[2] - self.robot_atag_q[2])/1000
+            pancake_tf.transform.translation.x = (self.pancake[0])/1000
+            pancake_tf.transform.translation.y = (self.pancake[1])/1000
+            pancake_tf.transform.translation.z = (self.pancake[2])/1000
+            # Quaternion of the angle about the z axis
+            # q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+            pancake_tf.transform.rotation = Quaternion(*self.un_rotation)
+            # Send the transform
+            # logdebug(atag_bottle_tf)
+            broadcaster.sendTransform(pancake_tf)
+        else:
+            rospy.logerr_once("Haven't found a pancake yet")
 
     def ee_offset(self, pose):
         """ Offsets the pose due to the end-effector
@@ -532,7 +539,12 @@ class ManipulatorControl:
             self.pancake_pose.position.x = 0.2813242885332488 #0.2962857892236259
             self.pancake_pose.position.y = 0.11798261990992079 #0.23646999765280124
 
+        x = self.pancake_coord.position.x
+        y = self.pancake_coord.position.y
         
+        self.pancake_pose.position.x = x
+        self.pancake_pose.position.y = y
+
         self.pancake_pose.position.z = 0.09 + 0.035
         self.pancake_pose.orientation.x = -0.65337
         self.pancake_pose.orientation.y = -0.232
@@ -557,7 +569,7 @@ class ManipulatorControl:
             logdebug("makis :(")
     
 
-        self.pancake_pose.position.y -= 0.43#0.40 #- .03
+        self.pancake_pose.position.y -= 0.45#0.40 #- .03
         # self.pancake_pose.position.z -= 0.0025   # old one
         self.pancake_pose.position.z = 0.19423
         # self.pancake_pose.orientation.x = 0.58062
@@ -830,8 +842,8 @@ class ManipulatorControl:
         #self.extend(-.1, -2.5)
         self.extend(-.08,-2.7)
 
-        self.arm_move_group.set_max_velocity_scaling_factor(1.0)
-        self.arm_move_group.set_max_acceleration_scaling_factor(1.0)
+        self.arm_move_group.set_max_velocity_scaling_factor(0.9)
+        self.arm_move_group.set_max_acceleration_scaling_factor(0.9)
 
         print("Tipping")
         joint5 = -.96 #-pi/2
@@ -846,8 +858,6 @@ class ManipulatorControl:
         
         rospy.set_param('/saved_pancake_pose',[self.saved_pancake_pose.pose.position.x,self.saved_pancake_pose.pose.position.y,self.saved_pancake_pose.pose.position.z])
         logdebug(self.saved_pancake_pose)
-
-        rospy.set_param('/pancaked',True)
 
         print("Squeezing")
         # self.grasp(.05,.01,.01,.1,50)
@@ -888,7 +898,7 @@ class ManipulatorControl:
 
         self.ee_pose = self.arm_move_group.get_current_pose()
         #self.ee_pose.pose.position.x = self.pancake_pose.pose.position.x
-        self.ee_pose.pose.position.z = pose.position.z + 0.05
+        self.ee_pose.pose.position.z = pose.position.z + 0.06
         waypoints.append(deepcopy(self.ee_pose.pose))
 
         moveit_robot_state = self.robot.get_current_state()
@@ -905,6 +915,10 @@ class ManipulatorControl:
 
         self.go_to_ready()
 
+        rospy.set_param('/pancaked',True)
+
+        # self.make_pancakes()
+
         return EmptyResponse()
 
     def get_pose(self, name):
@@ -919,7 +933,40 @@ class ManipulatorControl:
 		"""
 
         if name == "pancake": 
-            obj_pos = self.pancake_pose.pose
+            
+            listen = TransformListener()
+            while True:
+                try:
+                    self.dyn_tf()
+                    logdebug(rospy.get_param("/flip_location"))
+                    listen.waitForTransform('/panda_link0','/flip_location',rospy.Time(), rospy.Duration(4.0))
+                    break
+                except:
+                    logerror("Where is the pancake transform bro???")
+                    continue
+            
+            (trans, rot) = listen.lookupTransform('/panda_link0', '/flip_location', rospy.Time(0))
+
+            logdebug(trans)
+
+            obj_pos = trans
+
+        elif name == "finished_pancake": 
+            #obj_pos = self.bottle
+            listen = TransformListener()
+            while True:
+                try:
+                    listen.waitForTransform('/panda_link0','/lift_location',rospy.Time(), rospy.Duration(4.0))
+                    break
+                except:
+                    logerror("Do you even lift bro???")
+                    continue
+            
+            (trans, rot) = listen.lookupTransform('/panda_link0', '/lift_location', rospy.Time(0))
+
+            logdebug(trans)
+
+            obj_pos = trans
         
         elif name == "spatula": 
             listen = TransformListener()
@@ -928,7 +975,7 @@ class ManipulatorControl:
                     listen.waitForTransform('/panda_link0','/spatula_tag',rospy.Time(), rospy.Duration(4.0))
                     break
                 except:
-                    logerror("Where is the transform bro???")
+                    logerror("Where is the spatula transform bro???")
                     continue
             
             (trans, rot) = listen.lookupTransform('/panda_link0', '/spatula_tag', rospy.Time(0))
@@ -959,7 +1006,7 @@ class ManipulatorControl:
                     listen.waitForTransform('/panda_link0','/bottle_tag',rospy.Time(), rospy.Duration(4.0))
                     break
                 except:
-                    logerror("Where is the transform bro???")
+                    logerror("Where is the bottle transform bro???")
                     continue              
             
             (trans, rot) = listen.lookupTransform('/panda_link0', '/bottle_tag', rospy.Time(0))
@@ -977,6 +1024,7 @@ class ManipulatorControl:
 
             # Added ee_offset values here, may or may not work!!!!!
             obj_pos = [trans[0] + self.camera_offset[0] + 0.02, trans[1] + self.camera_offset[1] + 0.0158, trans[2] + self.camera_offset[2] + .02]
+
         else: 
             KeyError("Object does not exist")
         
@@ -999,6 +1047,8 @@ class ManipulatorControl:
             EmptyResponse : empty response
         """
 
+        rospy.set_param("/flipped", True)
+
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
         self.pivot(-3*pi/8)
@@ -1018,6 +1068,8 @@ class ManipulatorControl:
         self.arm_move_group.go()
         self.arm_move_group.stop()
 
+        # self.lift_coords = rospy.get_param("/lift_location")
+
         try:
             pancake_copy = deepcopy(self.saved_pancake_pose.pose)
             self.pancake_pose = pancake_copy
@@ -1034,6 +1086,12 @@ class ManipulatorControl:
             # self.pancake_pose.orientation.z = -0.348472
             # self.pancake_pose.orientation.w = 0.631521
 
+        x = self.pancake_lift_coord.position.x
+        y = self.pancake_lift_coord.position.y
+        
+        self.pancake_pose.position.x = x
+        self.pancake_pose.position.y = y
+
         self.pancake_pose.position.z = 0.09 + 0.035
         self.pancake_pose.orientation.x = -0.65337
         self.pancake_pose.orientation.y = -0.232
@@ -1044,7 +1102,7 @@ class ManipulatorControl:
 
         self.ee_pose = self.arm_move_group.get_current_pose()
         #self.ee_pose.pose.position.x = self.pancake_pose.pose.position.x
-        self.ee_pose.pose.position.x = self.pancake_pose.position.x
+        self.ee_pose.pose.position.x = self.pancake_pose.position.x + 0.02
         waypoints.append(deepcopy(self.ee_pose.pose))
 
         moveit_robot_state = self.robot.get_current_state()
@@ -1059,7 +1117,7 @@ class ManipulatorControl:
 
         logdebug("Moving to position left of pancake")
         #self.pancake_pose.pose.position.y -= 0.40 
-        self.pancake_pose.position.y -= 0.40 #- .03
+        self.pancake_pose.position.y -= 0.45 #- .03
         self.pancake_pose.position.z = 0.19423
         # pose.position.z += 0.20
         #waypoints.append(deepcopy(self.pancake_pose.pose))
@@ -1115,6 +1173,39 @@ class ManipulatorControl:
         self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven+pi/2})
         self.arm_move_group.go()
         self.arm_move_group.stop()
+
+        return EmptyResponse()
+
+    def make_pancakes_callback(self, event=None):
+        self.pour_callback()
+
+        flip_status = rospy.get_param("/flip_time")
+        while flip_status != True:
+            flip_status = rospy.get_param("/flip_time")
+        rospy.logdebug("time to flip")
+
+        self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
+
+        self.pancake_coord = self.get_pose("pancake")
+
+        logdebug(self.pancake_coord)
+
+        self.flip_callback()
+        
+        logdebug('Goodnight')
+
+        rospy.sleep(10)
+
+        logdebug('Good morning')
+
+        self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
+
+        rospy.sleep(10)
+
+        self.pancake_lift_coord = self.get_pose("pancake")
+
+        logdebug(self.pancake_lift_coord)
+        self.lift_callback()
 
         return EmptyResponse()
         

@@ -1,0 +1,8 @@
+<launch>
+    <include file="$(find pancake_pkg)/launch/make_pancakes.launch" pass_all_args="true">
+        <arg name="use_sim" value="true"/>
+    </include>
+
+    <test test-name="pancake_test" type="pancake_test" pkg="pancake_pkg" />
+
+</launch>
