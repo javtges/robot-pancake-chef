@@ -92,24 +92,17 @@ roslaunch pancake_pkg make_pancakes.launch use_sim:=false
 This command will launch the `cartesian_control`, `pancake_control`, `vision_test_node` nodes and display the Franka Emika Panda robot in `MoveIt` using `Rviz`. 
 
 ## Configuration
-Each of the three main functionalities of the project are implemented through ROS services. The first step is to pour batter onto the heated griddle. Open a terminal and use the following command,
+Each of the three main functionalities of the project are implemented through a single ROS service `make_pancakes`. The first step is to pour batter onto the heated griddle. This part of the service will command the robot to grab the food storage bottle containing the mixed pancake batter, flip the bottle spout-side down above the griddle, squeeze the bottle for six seconds allowing for pancake batter to be released, then flip the bottle spout-side up and place it back at its starting location.
+
+Once the batter has been dispensed, the pancake is ready to be flipped to allow for even cooking on both sides. This part of the service will command the robot to grab the modified heat-proof spatula, maneuver it to get the pancake situated on the spatula, flip the pancake back onto the griddle, then move the robot to its home posiiton.
+
+Once the other side of the pancake is fully cooked, the pancake is ready to be handed off to the hungry user. The last part of the service will command the robot to maneuver the modified heat-proof spatula to get the pancake situated on the spatula, then lift it off of the griddle and flip it onto a user's plate.
+
+Open a new terminal and run the following commands
 ```
+cd ~/ws
 source devel/setup.bash
-rosservice call /pour
+rosservice call /make_pancakes
 ```
-This service will command the robot to grab the food storage bottle containing the mixed pancake batter, flip the bottle spout-side down above the griddle, squeeze the bottle for six seconds allowing for pancake batter to be released, then flip the bottle spout-side up and place it back at its starting location.
-
-Once the batter has been dispensed, the pancake is ready to be flipped to allow for even cooking on both sides. In the same terminal, use the following command,
-```
-rosservice call /flip
-```
-This service will command the robot to grab the modified heat-proof spatula, maneuver it to get the pancake situated on the spatula, flip the pancake back onto the griddle, then move the robot to its home posiiton.
-
-Once the other side of the pancake is fully cooked, the pancake is ready to be handed off to the hungry user. In the same terminal, use the following command,
-```
-rosservice call /lift
-```
-This service will command the robot to maneuver the modified heat-proof spatula to get the pancake situated on the spatula, then lift it off of the griddle and flip it onto a user's plate.
-
 Upon successful completion of all the services, the user will have delicious, robot-made pancakes courtesy of the Franka Emika Panda robot and team FLIP IT. 
 ![flip-3](pancake_pkg/img/flip-3.gif)
