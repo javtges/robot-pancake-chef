@@ -1,6 +1,8 @@
 # Team FLIP IT Final Project: Pancake Manipulator Arm
 This repository contains software developed for ME 495 Embedded Systems in Robotics course. Written and maintained by James Avtges, Anna Garverick, Jackson Levine, Andru Liu, and Sarah Ziselman. 
 
+![flip1](img/flip-1.gif)
+
 ## Overview
 The objective of this project is to command a Franka Emika Panda arm to pour pre-mixed pancake batter onto a griddle, flip the pancake using a modified spatula, and lift the pancake off the griddle onto a plate. This process is done entirely autonomously utilizing open-source computer vision and motion planning software packages.
 

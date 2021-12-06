@@ -36,15 +36,10 @@ class cartesian_control:
         ## Cartesian Threshold ##
         lowerf = rospy.get_param("/franka_control/collision_config/lower_force_thresholds_nominal")
         logdebug("got first param")
-        # lowert = rospy.get_param("/franka_control/collision_config/lower_torque_thresholds_nominal")
         lowert = [39, 40, 40, 40, 40, 40, 40]
         force = [20, 20, 20, 20, 20, 20]
-        # lowertnew = [i=40 for i in lowert]
-        # rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
         upperf = rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
         logdebug("got second param")
-        # uppert = rospy.get_param("/franka_control/collision_config/upper_torque_thresholds_nominal")
-        # uppertnew = [i=40 for i in uppert]
         rospy.set_param("/franka_control/collision_config/lower_torque_thresholds_nominal", lowert)
         logdebug("set first param")
         rospy.set_param("/franka_control/collision_config/upper_torque_thresholds_nominal", lowert)
