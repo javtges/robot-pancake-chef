@@ -25,7 +25,7 @@ import moveit_commander
 import geometry_msgs
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion, TransformStamped, Vector3
 from moveit_commander.conversions import pose_to_list, list_to_pose
-from std_srvs.srv import Empty, EmptyResponse, Trigger
+from std_srvs.srv import Empty, EmptyResponse
 import actionlib
 from franka_gripper.msg import GraspAction, GraspGoal, GraspEpsilon
 from rospy.core import logdebug, logerror
@@ -1206,6 +1206,8 @@ class ManipulatorControl:
 
         logdebug(self.pancake_lift_coord)
         self.lift_callback()
+
+        return EmptyResponse()
         
 def main():
     """

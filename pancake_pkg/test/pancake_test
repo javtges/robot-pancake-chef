@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+"""
+Test node to test the pancake_control node's cooking services in simulation
+
+SERVICES:
+    + /flip (Empty) ~ commands the robot to use a spatula to flip a pancake on the griddle
+    + /lift (Empty) ~ commands the robot to use a spatula to lift the pancake off the griddle
+    + /pour (Empty) ~ commands the robot to pour batter from a bottle onto the griddle
+
+"""
+import rospy
+import unittest
+from geometry_msgs.msg import Pose
+from std_srvs.srv import Empty, EmptyResponse
+
+class PancakeTest(unittest.TestCase):
+    """ Runs tests on the pancake_control node services
+
+    """
+    def __init__(self, *args):
+        super(PancakeTest, self).__init__(*args)
+
+    def test_bad_flip_setup(self):
+        """ Function to ensure flip service will not cause movement without ability to see spatula
+        
+        """
+        rospy.wait_for_service('/flip')
+        flip = rospy.ServiceProxy("/flip", Empty)
+        flip_code = flip.call()
+
+        self.assertEqual(flip_code.code.val, None)
+
+    def test_bad_lift_setup(self):
+        """ Function to ensure lift service will not cause movement without ability to see pancake
+        
+        """
+        rospy.wait_for_service('/lift')
+        lift = rospy.ServiceProxy("/lift", Empty)
+        lift_code = lift.call()
+
+        self.assertEqual(lift_code.code.val, None)
+
+    def test_bad_pour_setup(self):
+        """ Function to ensure pour service will not cause movement without ability to see bottle
+        
+        """
+        rospy.wait_for_service('/pour')
+        pour = rospy.ServiceProxy("/pour", Empty)
+        pour_code = pour.call()
+
+        self.assertEqual(pour_code.code.val, None)
+
+
+if __name__ == "__main__":
+    import rostest 
+    rospy.init_node('pancake_test')
+    rostest.rosrun('pancake_pkg', 'pancake_test', PancakeTest)
