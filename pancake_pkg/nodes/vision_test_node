@@ -235,6 +235,7 @@ class ImageProcessing:
             self.pancake_pos_cam_y = trans[1]
             self.pancake_pos_cam_z = 0.05
             rospy.logdebug("pancake to camera transformed successfully?")
+            rospy.logerr()
             
         except:
             rospy.logerr("it's doomed")
@@ -252,6 +253,7 @@ class ImageProcessing:
 
         # Draw a circle in the mask and RGB image
         cv2.circle(black_mask, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80,255, -1)
+
         self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[0]), int(self.pancake_pos_pixel[1])), 80, (255,0,0), 3)
         rospy.logdebug("drew both circles")
 
