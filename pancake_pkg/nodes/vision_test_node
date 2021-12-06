@@ -1,5 +1,24 @@
 #!/usr/bin/env python
 
+"""
+Handling the computer vision for flipping pancakes
+
+SUBSCRIPTIONS:
+    + /camera/aligned_depth_to_color/image_raw (Image) ~ the depth image from the RealSense camera, aligned with the color
+    + /camera/color/image_raw (Image) ~ the color image from the RealSense
+    + /camera/aligned_depth_to_color/camera_info (CameraInfo) ~ the RealSense camera intrinsics, used in converting pixels to XYZ coordinates
+
+PARAMETERS:
+    + pancaked ~ a boolean flag for when the pour sequence has been completed
+    + flip_time ~ a boolean flag for when the vision code determines it's time to flip
+    + flipped ~ a boolean flag for when the flip sequence has been completed
+
+BROADCASTERS:
+    + flip_location ~ static coordinates in world frame for where the pancake is at the time of flipping
+    + lift_location ~ static coordinates in world frame for where the pancake is at the time of flipping
+
+"""
+
 from numpy.core.defchararray import lower
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
@@ -17,7 +36,6 @@ class ImageProcessing:
 
     def __init__(self):
         rospy.init_node('vision_test_node',anonymous=True, log_level=rospy.DEBUG)
-        rospy.logerr("started the node")
         rospy.sleep(2)
         rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, callback=self.convert_depth_image, queue_size=1)
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
@@ -25,23 +43,20 @@ class ImageProcessing:
         rospy.set_param("/pancaked", False)
         rospy.set_param("/flipped", False)
         rospy.set_param("/flip_time", False)
-        # rospy.set_param("/saved_pancake_pose", True)
 
         self.point_counter = 0
         self.point_matrix = np.zeros((4,2),np.int)
         self.first_frame_after_pour = True
         self.flag2 = False
         
-        rospy.logerr('subscribed')
-
     def show_video(self, name, ros_image):
-        """ TODO
+        """ Shows a video feed for debugging
 
-        TODO
+        Displays a video window of the specified image
 
         Args:
-            name (TODO) : TODO
-            ros_image (TODO) : TODO
+            name (string) : the name of the window to be created
+            ros_image (ndarray) : the image to be shown
         Returns:
             None
         """
@@ -51,12 +66,12 @@ class ImageProcessing:
         return
 
     def convert_depth_image(self,ros_image):
-        """ TODO
+        """ Converts the RealSense Image message for the depth channel
         
-        TODO
+        Uses CvBridge to convert the Image message into a ndarray suitable for OpenCV
 
         Args:
-            ros_image (TODO) : TODO
+            ros_image (Image) : The Image messsage published by the RealSense to the /camera/aligned_depth_to_color/image_raw topic
         Returns:
             None
         """
@@ -74,12 +89,12 @@ class ImageProcessing:
         return
 
     def convert_color_image(self,ros_image):
-        """ TODO
+        """ Converts the RealSense Image message for the color channel
 
-        TODO
+        Additionally calls functions for per-color-frame computer vision for pancake detection using OpenCV
 
         Args:
-            ros_image (TODO) : TODO
+            ros_image (Image) : The Image messsage published by the RealSense to the /camera/color/image_raw topic
         Returns:
             None
         """
@@ -114,18 +129,12 @@ class ImageProcessing:
         
         return
 
-    # def mouse_coords(self,event,x,y,flags,params):
-    #     # Left button mouse click event opencv
-    #     if event == cv2.EVENT_LBUTTONDOWN:
-    #         self.point_matrix[counter] = x,y
-            # self.point_counter += 1
-
     def get_intrinsics(self, camera_info):
-        """ TODO
-        TODO
+        """ Gets the intrinsics from the /camera/aligned_depth_to_color/camera_info topic
+        Intrinsics are used for finding the XYZ position of each pixel in the image
 
         Args:
-            camera_info (TODO) : TODO
+            camera_info (CameraInfo) : The message published by the Realsense to the /camera/aligned_depth_to_color/camera_info topic
         Returns:
             None
         """
@@ -144,7 +153,7 @@ class ImageProcessing:
     def find_bottle_location(self):  
         """ Finds the location of the bottle
 
-        TODO
+        This function is currently deprecated as AprilTags are used for bottle detection instead
 
         Args:
             None
@@ -183,56 +192,53 @@ class ImageProcessing:
         return
 
     def find_pancake_location(self):
-        """ Finds the location of the pancake
+        """ Finds the location of the pancake before flipping
 
-        TODO
+        Uses contour detection to determine an appropriate time to flip the pancake
+        Broadcasts the pancake position to /tf as a static transform /flip_location
 
         Args:
             None
         Returns:
             None
         """
-
-        print("finding pancake?")
         self.pancake_pos = rospy.get_param("/saved_pancake_pose")
         
         # Make a black mask
         black_mask = np.zeros((720, 1280), np.uint8)
 
-        # rospy.logdebug(self.pancake_pos_pixel)
-
         # Draw a circle in the mask and RGB image
         cv2.circle(black_mask, (445,471), 180 ,255, -1)
         self.rgb_image = cv2.circle(self.rgb_image, (445,471), 180, (255,0,0), 3)
 
-        # cv2.circle(black_mask, (int(self.pancake_pos_pixel[1]), int(self.pancake_pos_pixel[0])), 80,255, -1)
-        # self.rgb_image = cv2.circle(self.rgb_image, (int(self.pancake_pos_pixel[1]), int(self.pancake_pos_pixel[0])), 80, (255,0,0), 3)
-
-        rospy.logdebug_once("drew both circles")
-
+        # Apply thresholding to reduce the chance of finding something other than the pancake
         thresh,dst = cv2.threshold(self.grayscale_image, 100, 255, cv2.THRESH_BINARY)
-
 
         # Mask the images
         masked_img = cv2.bitwise_and(black_mask, dst)
-        self.show_video("pancake?",masked_img)
+        # self.show_video("pancake",masked_img)
         
+        # Apply Canny edge detection and contour finding to determine+count the contours
         canny_pancake = cv2.Canny(masked_img,50,150, 5, L2gradient = True)
 
         contours, heir = cv2.findContours(canny_pancake, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         num_contours = len(contours)
-        rospy.logdebug(num_contours)
-
-        self.show_video("canny?", canny_pancake)
+        # rospy.logdebug(num_contours)
+        # self.show_video("canny", canny_pancake)
 
         self.now = rospy.Time.now()
+
         if self.first_frame_after_pour == False:
+
+            # The condition for when the detection times out, changes the flags anyways so the pancake doesn't burn
             if rospy.Time.now() > self.starttime + self.cooktime:
                 rospy.logdebug("TIME TO FLIP, TIMED OUT")
 
                 hull_list = []
 
+                # Finds the second largest (by area) convex hull uses that as the pancake location to broadcast
+                # The largest contour is the circle of the mask itself
                 for i in range(len(contours)):
                     hull = cv2.convexHull(contours[i])
                     hull_list.append(hull)
@@ -255,7 +261,6 @@ class ImageProcessing:
 
                 ###########################
 
-                rospy.logdebug("testing broadcaster flip")
                 static_broadcaster = tf2_ros.StaticTransformBroadcaster()
                 flip_tf = TransformStamped()
                 flip_tf.header.stamp = rospy.Time.now()
@@ -264,8 +269,7 @@ class ImageProcessing:
                 flip_tf.transform.translation.x = self.flip_coords[0]/1000
                 flip_tf.transform.translation.y = self.flip_coords[1]/1000
                 flip_tf.transform.translation.z = self.flip_coords[2]/1000
-                #link0_atag_tf.transform.rotation = self.robot_atag_q
-                #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+
                 q2 = transformations.quaternion_from_euler(0, 0, 0)
                 rospy.logdebug(q2)
                 flip_tf.transform.rotation.w = 1
@@ -274,18 +278,20 @@ class ImageProcessing:
 
                 ##############################
 
+        # Notes the first time this runs (immediately after pouring) and counts the original number of contours
         if self.first_frame_after_pour:
-            rospy.logdebug("the first frame after pouring")
             self.starttime = rospy.Time.now()
             self.cooktime = rospy.Duration(60)
             self.orig_contour_count = num_contours
             self.first_frame_after_pour = False
 
+        # Set a flag when the number of contours exceed a threshold
         if num_contours > self.orig_contour_count * 1.2:
             self.flag2 = True
             
             rospy.logdebug("TIME TO FLIP?")
 
+        # After the threshold has been exceeded & contour counts go back down, flip the pancake
         if self.flag2 and num_contours < 70:
             rospy.logdebug("really oughta flip now")
 
@@ -322,8 +328,7 @@ class ImageProcessing:
             flip_tf.transform.translation.x = self.flip_coords[0]/1000
             flip_tf.transform.translation.y = self.flip_coords[1]/1000
             flip_tf.transform.translation.z = self.flip_coords[2]/1000
-            #link0_atag_tf.transform.rotation = self.robot_atag_q
-            #q1 = transformations.quaternion_about_axis(0, [0, 0, 1])
+            
             q2 = transformations.quaternion_from_euler(0, 0, 0)
             rospy.logdebug(q2)
             flip_tf.transform.rotation.w = 1
@@ -333,6 +338,16 @@ class ImageProcessing:
             ##########################
 
     def find_lift_location(self):
+        """ Finds the location of the pancake before lifting
+
+        Uses contour detection to determine an appropriate the location of the pancake for lifting
+        Broadcasts the pancake position to /tf as a static transform /lift_location
+
+        Args:
+            None
+        Returns:
+            None
+        """
         
         rospy.logerr("finding lift location")
 
@@ -395,16 +410,16 @@ class ImageProcessing:
 
 
     def get_xyz_from_image(self,depth_image, x,y):
-        """ TODO
+        """ Produces the XYZ values relative to the camera for a pixel
 
-        TODO
+        Given x, y (pixel coordinates), finds XYZ in millimeters relative to the camera using its intrinsics
 
         Args:
-            depth_image (float) : TODO
-            x (float) : TODO
-            y (float) : TODO
+            depth_image (ndarray) : The depth image after conversion by CvBridge
+            x (int) : the desired pixel's y (row) coordinate
+            y (int) : the desired pixel's x (col) coordinate
         Returns:
-            TODO
+            [x, y, z]: the coordinates in millimeters of the pixel relative to the camera
         """
         
         result = rs.rs2_deproject_pixel_to_point(self.intr, [x,y], depth_image[y,x])
