@@ -82,7 +82,8 @@ class ManipulatorControl:
 
         self.lift_waypoints = []
 
-        self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
+        #self.tmr = rospy.Timer(rospy.Duration(1/100), self.dyn_tf)
+        self.tmr = rospy.Timer(rospy.Duration(1/100), self.align_camera)
         
 
     def wait_for_state_update(self, box_name, box_is_known=False, box_is_attached=False, timeout=4):
@@ -151,11 +152,19 @@ class ManipulatorControl:
         Returns:
             None
         """
-        broadcaster = tf2_ros.TransformBroadcaster()
-        tf_time = rospy.Time.now()
-        listen = TransformListener()
-        listen.waitForTransform('/world','/camera_color_optical_frame',rospy.Time(), rospy.Duration(4.0))
-        (trans, rot) = listen.lookupTransform('/world', '/camera_color_optical_frame', rospy.Time(0))
+        # broadcaster = tf2_ros.TransformBroadcaster()
+        # tf_time = rospy.Time.now()
+        # listen = TransformListener()
+        
+        # While True:
+        #     try:
+        #         listen.waitForTransform('/world','/camera_color_optical_frame',rospy.Time(), rospy.Duration(4.0))
+        #         break
+        #     except: 
+        #         logerr("Where's the world bro???")
+        #         continue
+        
+        # (trans, rot) = listen.lookupTransform('/world', '/camera_color_optical_frame', rospy.Time(0))
         
         # Bottle tag in real life:
         bottle_irl = [0.1905, 0.13335, 0.0889]
@@ -165,7 +174,7 @@ class ManipulatorControl:
 
         self.camera_offset = [bottle_irl[0] - bottle_world[0], bottle_irl[1]-bottle_world[1], bottle_irl[2]-bottle_world[2]]
 
-        self.un_rotation = [-1*rot[0], -1*rot[1], -1*rot[2],-1*rot[3]]
+        # self.un_rotation = [-1*rot[0], -1*rot[1], -1*rot[2],-1*rot[3]]
 
     def dyn_tf(self, event=None):
         """ The timer callback function.
@@ -178,7 +187,7 @@ class ManipulatorControl:
             None
         """
         flag = rospy.get_param("/flip_time")
-        self.align_camera()
+        #self.align_camera()
 
         if flag:
             logdebug("trying to find the pancake")
@@ -334,8 +343,9 @@ class ManipulatorControl:
             listen = TransformListener()
             while True:
                 try:
-                    self.dyn_tf()
-                    logdebug(rospy.get_param("/flip_location"))
+                    #self.dyn_tf()
+                    #self.align_camera()
+                    # logdebug(rospy.get_param("/flip_location"))
                     listen.waitForTransform('/panda_link0','/flip_location',rospy.Time(), rospy.Duration(4.0))
                     break
                 except:
@@ -352,7 +362,8 @@ class ManipulatorControl:
             listen = TransformListener()
             while True:
                 try:
-                    self.dyn_tf()
+                    #self.dyn_tf()
+                    #self.align_camera()
                     listen.waitForTransform('/panda_link0','/lift_location',rospy.Time(), rospy.Duration(4.0))
                     break
                 except:
@@ -437,7 +448,7 @@ class ManipulatorControl:
             None
         """
         self.gripper_move_group.set_named_target('close')
-        self.gripper_move_group.go()user-specified
+        self.gripper_move_group.go()
         self.gripper_move_group.stop()
         self.gripper_move_group.clear_pose_targets()
 
@@ -984,6 +995,8 @@ class ManipulatorControl:
             EmptyResponse : empty response
         """
         #Pour
+        #self.dyn_tf()
+        #self.align_camera()
         self.pour_callback()
 
         #Wait for signal to flip
@@ -991,7 +1004,6 @@ class ManipulatorControl:
         while flip_status != True:
             flip_status = rospy.get_param("/flip_time")
         rospy.logdebug("time to flip")
-        self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
 
         #Get pancake location for the flip
         self.pancake_coord = self.get_pose("pancake")
@@ -1004,7 +1016,6 @@ class ManipulatorControl:
         logdebug('Goodnight')
         rospy.sleep(10)
         logdebug('Good morning')
-        self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
         rospy.sleep(10)
 
         logdebug("lifting time")

@@ -180,13 +180,13 @@ class ImageProcessing:
         cnt=contours[max_index]
 
         x,y,w,h = cv2.boundingRect(cnt)
-        cv2.rectangle(self.rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
+        # cv2.rectangle(self.rgb_image,(x,y),(x+w,y+h),(0,255,0),2)
 
         M = cv2.moments(cnt)
         self.cx_bottle = int(M['m10']/M['m00'])
         self.cy_bottle = int(M['m01']/M['m00'])
 
-        cv2.circle(self.rgb_image, (self.cx_bottle,self.cy_bottle), 4, (255,0,0), 3)
+        # cv2.circle(self.rgb_image, (self.cx_bottle,self.cy_bottle), 4, (255,0,0), 3)
 
         result = self.get_xyz_from_image(self.depth_image, self.cx_bottle, self.cy_bottle)
 
@@ -288,12 +288,12 @@ class ImageProcessing:
             self.first_frame_after_pour = False
 
         # Set a flag when the number of contours exceed a threshold
-        if num_contours > self.orig_contour_count * 1.2:
+        if num_contours > self.orig_contour_count * 1.3:
             self.flag2 = True
             
             # rospy.logdebug("TIME TO FLIP?")
 
-        if self.flag2 and num_contours < self.orig_contour_count * 0.8:
+        if self.flag2 and num_contours < self.orig_contour_count * 0.7:
             rospy.logdebug("Preparing to flip pancake")
 
             hull_list = []
@@ -313,7 +313,7 @@ class ImageProcessing:
 
             self.flip_coords = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
-            # rospy.set_param("/flip_location", self.flip_coords)
+            rospy.set_param("/flip_location", self.flip_coords)
             # rospy.logerr(self.flip_coords)
             rospy.set_param("/flip_time", True)
             rospy.set_param("/pancaked", False)
