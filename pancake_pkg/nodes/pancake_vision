@@ -36,6 +36,7 @@ class ImageProcessing:
 
     def __init__(self):
         rospy.init_node('vision_test_node',anonymous=True, log_level=rospy.DEBUG)
+
         rospy.sleep(2)
         rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, callback=self.convert_depth_image, queue_size=1)
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
@@ -84,7 +85,7 @@ class ImageProcessing:
 
         except CvBridgeError:
             print(CvBridgeError())
-            rospy.logerr("bad")
+            rospy.logerr("bad image")
         
         return
 
@@ -125,7 +126,7 @@ class ImageProcessing:
 
         except CvBridgeError:
             print(CvBridgeError())
-            rospy.logerr("bad")
+            rospy.logerr("bad image")
         
         return
 
@@ -254,8 +255,8 @@ class ImageProcessing:
 
                 self.flip_coords = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
-                rospy.set_param("/flip_location", self.flip_coords)
-                rospy.logerr(self.flip_coords)
+                # rospy.set_param("/flip_location", self.flip_coords)
+                # rospy.logerr(self.flip_coords)
                 rospy.set_param("/flip_time", True)
                 rospy.set_param("/pancaked", False)
 
@@ -290,10 +291,10 @@ class ImageProcessing:
         if num_contours > self.orig_contour_count * 1.2:
             self.flag2 = True
             
-            rospy.logdebug("TIME TO FLIP?")
+            # rospy.logdebug("TIME TO FLIP?")
 
         if self.flag2 and num_contours < self.orig_contour_count * 0.8:
-            rospy.logdebug("really oughta flip now")
+            rospy.logdebug("Preparing to flip pancake")
 
             hull_list = []
 
@@ -312,14 +313,14 @@ class ImageProcessing:
 
             self.flip_coords = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
-            rospy.set_param("/flip_location", self.flip_coords)
-            rospy.logerr(self.flip_coords)
+            # rospy.set_param("/flip_location", self.flip_coords)
+            # rospy.logerr(self.flip_coords)
             rospy.set_param("/flip_time", True)
             rospy.set_param("/pancaked", False)
 
             #########################
 
-            rospy.logdebug("testing broadcaster flip")
+            # rospy.logdebug("testing broadcaster flip")
             static_broadcaster = tf2_ros.StaticTransformBroadcaster()
             flip_tf = TransformStamped()
             flip_tf.header.stamp = rospy.Time.now()
@@ -349,7 +350,7 @@ class ImageProcessing:
             None
         """
         
-        rospy.logerr("finding lift location")
+        # rospy.logerr("finding lift location")
 
         black_mask = np.zeros((720, 1280), np.uint8)
 
@@ -361,11 +362,11 @@ class ImageProcessing:
 
         masked_img_lift = cv2.bitwise_and(black_mask, dst)
 
-        rospy.logdebug("drew a circle where we last saw the pancake, lifting this time. also thresholding works?")
+        # rospy.logdebug("drew a circle where we last saw the pancake, lifting this time. also thresholding works?")
         
         canny_pancake_lift = cv2.Canny(masked_img_lift,50,150, 5, L2gradient = True)
 
-        self.show_video("canny?", canny_pancake_lift)
+        # self.show_video("canny", canny_pancake_lift)
 
 
         contours, heir = cv2.findContours(canny_pancake_lift, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -387,10 +388,9 @@ class ImageProcessing:
 
         self.lift_coords = self.get_xyz_from_image(self.depth_image, self.cx, self.cy)
 
-        rospy.set_param("/flip_location", self.lift_coords)
-        rospy.logerr("updated flip location")
+        # rospy.set_param("/flip_location", self.lift_coords)
+        # rospy.logerr("updated flip location")
 
-        rospy.logdebug("testing broadcaster lift")
         static_broadcaster = tf2_ros.StaticTransformBroadcaster()
         lift_tf = TransformStamped()
         lift_tf.header.stamp = rospy.Time.now()
