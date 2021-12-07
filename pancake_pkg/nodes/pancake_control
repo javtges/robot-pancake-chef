@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 """
-Flipping pancakes 
+This node is responsible for the motion planning of the Franka Emika Panda robot in order to pour batter,
+flip pancakes, and lift them off a griddle.
 
 SERVICES:
     + /pour (Empty) ~ commands the robot to pour batter from a bottle onto the griddle
@@ -25,7 +26,7 @@ import moveit_commander
 import geometry_msgs
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion, TransformStamped, Vector3
 from moveit_commander.conversions import pose_to_list, list_to_pose
-from std_srvs.srv import Empty, EmptyResponse, Trigger
+from std_srvs.srv import Empty, EmptyResponse
 import actionlib
 from franka_gripper.msg import GraspAction, GraspGoal, GraspEpsilon
 from rospy.core import logdebug, logerror
@@ -43,38 +44,6 @@ from franka_msgs.srv import SetForceTorqueCollisionBehavior
 class ManipulatorControl:
     def __init__(self):
         super(ManipulatorControl, self).__init__()
-        # ## Cartesian Threshold ##
-        # lowerf = rospy.get_param("/franka_control/collision_config/lower_force_thresholds_nominal")
-        # logdebug("got first param")
-        # # lowert = rospy.get_param("/franka_control/collision_config/lower_torque_thresholds_nominal")
-        # lowert = [39, 40, 40, 40, 40, 40, 40]
-        # force = [20, 20, 20, 20, 20, 20]
-        # # lowertnew = [i=40 for i in lowert]
-        # # rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
-        # upperf = rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
-        # logdebug("got second param")
-        # # uppert = rospy.get_param("/franka_control/collision_config/upper_torque_thresholds_nominal")
-        # # uppertnew = [i=40 for i in uppert]
-        # rospy.set_param("/franka_control/collision_config/lower_torque_thresholds_nominal", lowert)
-        # logdebug("set first param")
-        # rospy.set_param("/franka_control/collision_config/upper_torque_thresholds_nominal", lowert)
-        # logdebug("set second param")
-        # rospy.set_param("/franka_control/collision_config/upper_force_thresholds_nominal", force)
-        # rospy.set_param("/franka_control/collision_config/lower_force_thresholds_nominal", force)
-
-
-        # self.torque = rospy.ServiceProxy('/franka_control/set_force_torque_collision_behavior', SetForceTorqueCollisionBehavior)
-        # logdebug("service proxy")
-
-        # please = self.torque(lowert, lowert, force, force)
-        # if please.success == True:
-        #     success = True
-        #     error_msg = "Did it!"
-        # else:
-        #     success = False
-        #     error_msg = "Didn't do it :("
-        # logdebug("set torques")
-        # rospy.sleep(10)
 
         # initialize moveit commander
         moveit_commander.roscpp_initialize(sys.argv)
@@ -1218,6 +1187,8 @@ class ManipulatorControl:
 
         logdebug(self.pancake_lift_coord)
         self.lift_callback()
+
+        return EmptyResponse()
         
 def main():
     """

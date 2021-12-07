@@ -1,0 +1,154 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pancake_pkg.transform &#8212; pancake_pkg 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="header-wrapper" role="banner">
+      <div class="header">
+        <div class="headertitle"><a
+          href="../../index.html">pancake_pkg 1.0.0 documentation</a></div>
+        <div class="rel" role="navigation" aria-label="related navigation">
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a>
+        </div>
+       </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pancake_pkg.transform</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd"> The transform.py is responsible for doing the calculations to transform the visualzied objects to the link0 frame.</span>
+
+<span class="sd">PARAMETERS:</span>
+<span class="sd">    name - name of the object (pancake, spatula, bottle)</span>
+<span class="sd">    obj_pos - position of the object in the camera frame</span>
+<span class="sd">    robot_atag - position of april tag of known distance from robot</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="n">inf</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">sin</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">tan</span><span class="p">,</span> <span class="n">atan2</span><span class="p">,</span> <span class="n">sqrt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<div class="viewcode-block" id="TransformToRobot"><a class="viewcode-back" href="../../pancake_pkg.html#pancake_pkg.transform.TransformToRobot">[docs]</a><span class="k">class</span> <span class="nc">TransformToRobot</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">obj_pos</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Manages setup for the class.</span>
+
+<span class="sd">		Args:</span>
+<span class="sd">            name (string) : The name of the object (pancake, spatula, bottle)</span>
+<span class="sd">            obj_pos (numpy array) : The position of the object in the camera frame</span>
+<span class="sd">		Returns:</span>
+<span class="sd">			None</span>
+
+<span class="sd">		&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">obj_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">obj_pos</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">link0_ratag_tf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1143</span><span class="p">,</span> <span class="mf">0.1111</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="c1"># THESE ARE ARBITRARILY SET RIGHT NOW</span>
+
+<div class="viewcode-block" id="TransformToRobot.compute"><a class="viewcode-back" href="../../pancake_pkg.html#pancake_pkg.transform.TransformToRobot.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Computes position of object with respect to link0.</span>
+
+<span class="sd">		Args:</span>
+<span class="sd">            None</span>
+<span class="sd">		Returns:</span>
+<span class="sd">			list[float] : list of 7 values corresponding to a pose</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+        <span class="n">pose</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+        <span class="n">pose</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj_pos</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;pancake&quot;</span><span class="p">:</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;spatula&quot;</span><span class="p">:</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.65337</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.232</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.28944</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.65993</span>
+        
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;bottle&quot;</span><span class="p">:</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.629614</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.28868</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.348472</span>
+            <span class="n">pose</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.631521</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;Object does not exist&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">pose</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          <h3>Table of Contents</h3>
+          <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">src</a></li>
+</ul>
+
+          <div role="search">
+            <h3 style="margin-top: 1.5em;">Search</h3>
+            <form class="search" action="../../search.html" method="get">
+                <input type="text" name="q" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+            </form>
+          </div>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+      <div class="footer">
+        <div class="left">
+          <div role="navigation" aria-label="related navigaton">
+            <a href="../../py-modindex.html" title="Python Module Index"
+              >modules</a> |
+            <a href="../../genindex.html" title="General Index"
+              >index</a>
+          </div>
+          <div role="note" aria-label="source link">
+          </div>
+        </div>
+
+        <div class="right">
+          
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2021.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+  </body>
+</html>
