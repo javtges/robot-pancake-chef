@@ -108,3 +108,13 @@ rosservice call /make_pancakes
 ```
 Upon successful completion of all the services, the user will have delicious, robot-made pancakes courtesy of the Franka Emika Panda robot and team FLIP IT. 
 ![flip-3](pancake_pkg/img/flip-3.gif)
+
+## Testing
+This package also contains testing applications to ensure that ROS implementation of the position of objects and the Python package pose calculations are correct. 
+
+Use a terminal to run the following commands depending on the test to be run. Use the first to run all tests; however, ROS testing will required connection to the robot. Use the second command to run the Python package calculations.
+```
+
+catkin_make run_tests
+catkin_make run_tests_pancake_pkg_nosetests_test
+```
