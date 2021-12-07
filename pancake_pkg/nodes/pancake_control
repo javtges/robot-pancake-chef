@@ -202,9 +202,9 @@ class ManipulatorControl:
             rospy.logerr_once("Haven't found a pancake yet")
 
     def ee_offset(self, pose):
-        """ Offsets the pose due to the end-effector
+        """ Offsets the pose to account for the actual position of the grippers relative to where the end effector link is measured
 
-        Function that takes in a pose and offsets it according to the offset of the end-effector
+        Function that takes in a pose and offsets it according to the offset of the grippers
 
         Args:
             pose (geometry_msgs/Pose) : the pose to be offset by
@@ -319,9 +319,9 @@ class ManipulatorControl:
             self.scene.add_box(table_name, table_pose, size=(0.5, 0.0254, 0.0254))
 
     def get_pose(self, name):
-        """ Gets the pose of a user-specified object
+        """ Gets the pose of a target object
         
-        Computes computes the pose necessary for the arm to reach the user-specified object
+        Computes computes the pose necessary for the arm to reach the target object
 
 		Args:
             name (string) : the object to get the pose of
@@ -378,7 +378,7 @@ class ManipulatorControl:
             (trans, rot) = listen.lookupTransform('/panda_link0', '/spatula_tag', rospy.Time(0))
 
             logdebug(trans)
-            atag_offset = [0.05,-0.063,-0.102]
+            atag_offset = [0.05,-0.063,-0.102] #Offset between atag on the spatula rest and the spatual grip location
 
 
             obj_pos = [trans[0] + self.camera_offset[0] + atag_offset[0], trans[1] + self.camera_offset[1] + atag_offset[1], trans[2] + self.camera_offset[1] + atag_offset[2]]
@@ -437,7 +437,7 @@ class ManipulatorControl:
             None
         """
         self.gripper_move_group.set_named_target('close')
-        self.gripper_move_group.go()
+        self.gripper_move_group.go()user-specified
         self.gripper_move_group.stop()
         self.gripper_move_group.clear_pose_targets()
 
@@ -585,12 +585,15 @@ class ManipulatorControl:
         Commands the robot to pick up the bottle and pour batter onto the griddle
 
         Args:
-            event (Empty) : Event holder for empty input
+            empty (None) : holder for empty input
         Returns:
             EmptyResponse : empty response
         """
 
+        #Open Gripper
         self.open_gripper()
+        
+        #Get bottle position
         pose = self.get_pose('bottle')
         logdebug(pose)
 
@@ -601,12 +604,14 @@ class ManipulatorControl:
 
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
+        #Single joint control waypoints
         self.pivot(pi/4)
 
         self.tip(-1)
 
         self.extend(.34,-1.9)
 
+        #Cartesian path to grasp bottle and lift slightly
         waypoints = []
 
         waypoints.append(deepcopy(pose))
@@ -640,6 +645,7 @@ class ManipulatorControl:
         else:
             logdebug("please re-plan")
 
+        #Move bottle over griddle
         self.pivot(.96)
 
         self.extend(-.08,-2.7)
@@ -647,6 +653,7 @@ class ManipulatorControl:
         self.arm_move_group.set_max_velocity_scaling_factor(0.9)
         self.arm_move_group.set_max_acceleration_scaling_factor(0.9)
 
+        #Tip bottle and squeeze out batter
         logdebug("Tipping")
         joint5 = -.96 
         joint7 = -2.7
@@ -666,6 +673,7 @@ class ManipulatorControl:
 
         rospy.sleep(12)
 
+        #Single joint control waypoints to return the bottle
         self.spin(0)
 
         self.pivot(pi/4)
@@ -676,6 +684,7 @@ class ManipulatorControl:
 
         logdebug("Return bottle")
 
+        #Cartesian path to set the bottle down an dodge the bottle on the way home
         (plan, fraction) = self.arm_move_group.compute_cartesian_path(waypoints, 0.01, 0.0)
         self.arm_move_group.execute(plan, wait="True")
 
@@ -940,7 +949,7 @@ class ManipulatorControl:
         if fraction == 1.0:
             self.arm_move_group.execute(plan, wait="True")
         else:
-            logdebug("not abel to move this close")
+            logdebug("not able to move this close")
 
         logdebug("Lifting spatula up")
         self.pancake_pose.position.z += 0.10 + .015
@@ -956,6 +965,7 @@ class ManipulatorControl:
         else:
             logdebug("not able to lift")
 
+        #Spinning joint 7 to slide pancake off the spatula
         one, two, three, four, five, six, seven = self.arm_move_group.get_current_joint_values()
         self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six, 'panda_joint7': seven+pi/2})
         self.arm_move_group.go()
@@ -973,19 +983,24 @@ class ManipulatorControl:
         Returns:
             EmptyResponse : empty response
         """
+        #Pour
         self.pour_callback()
 
+        #Wait for signal to flip
         flip_status = rospy.get_param("/flip_time")
         while flip_status != True:
             flip_status = rospy.get_param("/flip_time")
         rospy.logdebug("time to flip")
         self.tmr = rospy.Timer(rospy.Duration(1/10), self.dyn_tf)
 
+        #Get pancake location for the flip
         self.pancake_coord = self.get_pose("pancake")
         logdebug(self.pancake_coord)
 
+        #Flip the pancake
         self.flip_callback()
         
+        #Wait for 20 seconds to lift
         logdebug('Goodnight')
         rospy.sleep(10)
         logdebug('Good morning')
@@ -995,9 +1010,11 @@ class ManipulatorControl:
         logdebug("lifting time")
         rospy.set_param("/flipped", True)
 
+        #Get pancake location for the lift
         self.pancake_lift_coord = self.get_pose("finished_pancake")
         logdebug(self.pancake_lift_coord)
 
+        #Lift the pancake
         self.lift_callback()
 
         return EmptyResponse()
