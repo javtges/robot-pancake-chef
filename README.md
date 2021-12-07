@@ -11,7 +11,7 @@ The objective of this project is to command a Franka Emika Panda arm to pour pre
 The `pancake_pkg` package contains the following nodes:
 * `cartesian_control` - This node adjusts the force and torque threshold parameters of the Franka Emika Panda robot by calling the `SetForceTorqueCollisionBehavior` service. This reduces potential reflex that may be exhibited by the robot when planning cartesian paths.
 * `pancake_control` - This node is responsible for implementing the `MoveIt` motion planner on the Franka Emika Panda robot. It sends a series of commands to allow for path planning and execution in order to carry out the robot's desired functionality.
-* `vision_test_node` - This node is responsible for image processing using data acquired from the RealSense camera. It allows the camera to gain information about the environment such as frame transformations, object poses, and more.
+* `pancake_vision` - This node is responsible for image processing using data acquired from the RealSense camera. It allows the camera to gain information about the environment such as frame transformations, object poses, and more.
 
 ## Software Requirements
 The following steps will need to be executed to fulfil the software requirements needed to run this project.
@@ -91,7 +91,7 @@ Once the hardware has been set up, the software is ready to be launched. Open a 
 source devel/setup.bash
 roslaunch pancake_pkg make_pancakes.launch use_sim:=false
 ```
-This command will launch the `cartesian_control`, `pancake_control`, `vision_test_node` nodes and display the Franka Emika Panda robot in `MoveIt` using `Rviz`. 
+This command will launch the `cartesian_control`, `pancake_control`, `pancake_vision` nodes and display the Franka Emika Panda robot in `MoveIt` using `Rviz`. 
 
 ## Configuration
 Each of the three main functionalities of the project are implemented through a single ROS service `make_pancakes`. The first step is to pour batter onto the heated griddle. This part of the service will command the robot to grab the food storage bottle containing the mixed pancake batter, flip the bottle spout-side down above the griddle, squeeze the bottle for six seconds allowing for pancake batter to be released, then flip the bottle spout-side up and place it back at its starting location.
