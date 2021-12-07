@@ -190,7 +190,7 @@ class ManipulatorControl:
 
         if flag:
             logdebug("trying to find the pancake")
-            self.pancake = rospy.get_param("/flip_location") #position of pancake in camera frame
+            # self.pancake = rospy.get_param("/flip_location") #position of pancake in camera frame
             logdebug("got the pancake location")
             broadcaster = tf2_ros.TransformBroadcaster()
             # Add Odometry to base_footprint in tf
@@ -909,7 +909,7 @@ class ManipulatorControl:
             while True:
                 try:
                     self.dyn_tf()
-                    logdebug(rospy.get_param("/flip_location"))
+                    # logdebug(rospy.get_param("/flip_location"))
                     listen.waitForTransform('/panda_link0','/flip_location',rospy.Time(), rospy.Duration(4.0))
                     break
                 except:
