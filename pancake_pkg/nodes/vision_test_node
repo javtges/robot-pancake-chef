@@ -36,6 +36,7 @@ class ImageProcessing:
 
     def __init__(self):
         rospy.init_node('vision_test_node',anonymous=True, log_level=rospy.DEBUG)
+
         rospy.sleep(2)
         rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, callback=self.convert_depth_image, queue_size=1)
         rospy.Subscriber("/camera/color/image_raw", Image, callback=self.convert_color_image, queue_size=1)
