@@ -128,6 +128,7 @@ source devel/setup.bash
 rosservice call /make_pancakes
 ```
 Upon successful completion of all the services, the user will have delicious, robot-made pancakes courtesy of the Franka Emika Panda robot and team FLIP IT. 
+
 ![flip-3](pancake_pkg/img/flip-3.gif)
 
 ## Testing
