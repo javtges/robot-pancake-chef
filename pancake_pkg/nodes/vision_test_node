@@ -277,7 +277,8 @@ class ImageProcessing:
         if self.first_frame_after_pour:
             rospy.logdebug("the first frame after pouring")
             self.starttime = rospy.Time.now()
-            self.cooktime = rospy.Duration(60)
+            self.cooktime = rospy.Duration(45)
+            self.mintime = rospy.Duration(15)
             self.orig_contour_count = num_contours
             self.first_frame_after_pour = False
 
@@ -286,7 +287,7 @@ class ImageProcessing:
             
             rospy.logdebug("TIME TO FLIP?")
 
-        if self.flag2 and num_contours < 70:
+        if self.flag2 and num_contours < self.orig_contour_count * 0.8:
             rospy.logdebug("really oughta flip now")
 
             hull_list = []
@@ -364,7 +365,7 @@ class ImageProcessing:
         self.contours_by_area_lift = sorted(contours, key=cv2.contourArea, reverse=True)
         self.hulls_by_area_lift = sorted(hull_list, key=cv2.contourArea, reverse=True)
 
-        M = cv2.moments(self.hulls_by_area_lift[1])
+        M = cv2.moments(self.hulls_by_area_lift[0])
         self.cx = int(M['m10']/M['m00'])
         self.cy = int(M['m01']/M['m00'])
 

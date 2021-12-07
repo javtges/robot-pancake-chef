@@ -530,14 +530,16 @@ class ManipulatorControl:
         # self.arm_move_group.set_joint_value_target({'panda_joint1': one, 'panda_joint2': two, 'panda_joint3': three, 'panda_joint4': four, 'panda_joint5': five, 'panda_joint6': six+0.15, 'panda_joint7': seven})
         # self.arm_move_group.go()
         # self.arm_move_group.stop()
-        try: 
-            pancake_copy = deepcopy(self.saved_pancake_pose.pose)
-            self.pancake_pose = pancake_copy
-        except:
-            logdebug('Saved pancake pose not found')
-            self.pancake_pose = Pose()
-            self.pancake_pose.position.x = 0.2813242885332488 #0.2962857892236259
-            self.pancake_pose.position.y = 0.11798261990992079 #0.23646999765280124
+        # try: 
+        #     pancake_copy = deepcopy(self.saved_pancake_pose.pose)
+        #     self.pancake_pose = pancake_copy
+        # except:
+        #     logdebug('Saved pancake pose not found')
+        #     self.pancake_pose = Pose()
+        #     self.pancake_pose.position.x = 0.2813242885332488 #0.2962857892236259
+        #     self.pancake_pose.position.y = 0.11798261990992079 #0.23646999765280124
+
+        self.pancake_pose = Pose()
 
         x = self.pancake_coord.position.x
         y = self.pancake_coord.position.y
@@ -555,7 +557,7 @@ class ManipulatorControl:
 
         self.ee_pose = self.arm_move_group.get_current_pose()
         #self.ee_pose.pose.position.x = self.pancake_pose.pose.position.x
-        self.ee_pose.pose.position.x = self.pancake_pose.position.x
+        self.ee_pose.pose.position.x = self.pancake_pose.position.x + 0.03
         waypoints.append(deepcopy(self.ee_pose.pose))
 
         moveit_robot_state = self.robot.get_current_state()
@@ -569,7 +571,7 @@ class ManipulatorControl:
             logdebug("makis :(")
     
 
-        self.pancake_pose.position.y -= 0.45#0.40 #- .03
+        self.pancake_pose.position.y -= 0.47    #0.45    #0.40 #- .03
         # self.pancake_pose.position.z -= 0.0025   # old one
         self.pancake_pose.position.z = 0.19423
         # self.pancake_pose.orientation.x = 0.58062
@@ -956,6 +958,7 @@ class ManipulatorControl:
             listen = TransformListener()
             while True:
                 try:
+                    self.dyn_tf()
                     listen.waitForTransform('/panda_link0','/lift_location',rospy.Time(), rospy.Duration(4.0))
                     break
                 except:
@@ -991,7 +994,9 @@ class ManipulatorControl:
             logdebug(trans)
             # atag_offset = [0.05,-0.08,-0.12]
             # atag_offset = [0.05,-0.08,-0.114]
-            atag_offset = [0.05,-0.068,-0.102]
+            # atag_offset = [0.05,-0.068,-0.102]
+            atag_offset = [0.05,-0.063,-0.102]
+
 
             obj_pos = [trans[0] + self.camera_offset[0] + atag_offset[0], trans[1] + self.camera_offset[1] + atag_offset[1], trans[2] + self.camera_offset[1] + atag_offset[2]]
             #obj_pos = [trans[0] + self.camera_offset[0], trans[1] + self.camera_offset[1], trans[2] + self.camera_offset[1]]
@@ -1046,9 +1051,6 @@ class ManipulatorControl:
         Returns:
             EmptyResponse : empty response
         """
-
-        rospy.set_param("/flipped", True)
-
         self.arm_move_group.set_max_velocity_scaling_factor(0.5)
 
         self.pivot(-3*pi/8)
@@ -1070,21 +1072,23 @@ class ManipulatorControl:
 
         # self.lift_coords = rospy.get_param("/lift_location")
 
-        try:
-            pancake_copy = deepcopy(self.saved_pancake_pose.pose)
-            self.pancake_pose = pancake_copy
-            # self.pancake_pose = self.saved_pancake_pose.pose
-        except:
-            # pose = self.get_pose('pancake')
-            logdebug('Saved pancake pose not found')
-            self.pancake_pose = Pose()
-            self.pancake_pose.position.x = 0.2813242885332488 #0.29720414417292834
-            self.pancake_pose.position.y = 0.11798261990992079 #0.2658212736204737
+        # try:
+        #     pancake_copy = deepcopy(self.saved_pancake_pose.pose)
+        #     self.pancake_pose = pancake_copy
+        #     # self.pancake_pose = self.saved_pancake_pose.pose
+        # except:
+        #     # pose = self.get_pose('pancake')
+        #     logdebug('Saved pancake pose not found')
+        #     self.pancake_pose = Pose()
+        #     self.pancake_pose.position.x = 0.2813242885332488 #0.29720414417292834
+        #     self.pancake_pose.position.y = 0.11798261990992079 #0.2658212736204737
 
             # self.pancake_pose.orientation.x = -0.629614
             # self.pancake_pose.orientation.y = -0.28868
             # self.pancake_pose.orientation.z = -0.348472
             # self.pancake_pose.orientation.w = 0.631521
+
+        self.pancake_pose = Pose()
 
         x = self.pancake_lift_coord.position.x
         y = self.pancake_lift_coord.position.y
@@ -1102,7 +1106,7 @@ class ManipulatorControl:
 
         self.ee_pose = self.arm_move_group.get_current_pose()
         #self.ee_pose.pose.position.x = self.pancake_pose.pose.position.x
-        self.ee_pose.pose.position.x = self.pancake_pose.position.x + 0.02
+        self.ee_pose.pose.position.x = self.pancake_pose.position.x + 0.03
         waypoints.append(deepcopy(self.ee_pose.pose))
 
         moveit_robot_state = self.robot.get_current_state()
@@ -1117,7 +1121,7 @@ class ManipulatorControl:
 
         logdebug("Moving to position left of pancake")
         #self.pancake_pose.pose.position.y -= 0.40 
-        self.pancake_pose.position.y -= 0.45 #- .03
+        self.pancake_pose.position.y -= 0.47    #0.45 #- .03
         self.pancake_pose.position.z = 0.19423
         # pose.position.z += 0.20
         #waypoints.append(deepcopy(self.pancake_pose.pose))
@@ -1140,6 +1144,11 @@ class ManipulatorControl:
         logdebug("Moving to position right of pancake")
         #self.pancake_pose.pose.position.y += 0.03
         self.pancake_pose.position.y += 0.03 + 0.02 + 0.16
+        logdebug(self.pancake_pose.position.y)
+        if self.pancake_pose.position.y > -0.063595:
+            self.pancake_pose.position.y = -0.048
+            logdebug(self.pancake_pose.position.y)
+        
         waypoints = []
         #waypoints.append(deepcopy(self.pancake_pose.pose))
         waypoints.append(deepcopy(self.pancake_pose))
@@ -1202,7 +1211,10 @@ class ManipulatorControl:
 
         rospy.sleep(10)
 
-        self.pancake_lift_coord = self.get_pose("pancake")
+        logdebug("lifting time")
+        rospy.set_param("/flipped", True)
+
+        self.pancake_lift_coord = self.get_pose("finished_pancake")
 
         logdebug(self.pancake_lift_coord)
         self.lift_callback()
