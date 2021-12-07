@@ -116,3 +116,6 @@ Use a terminal to run the following commands depending on the test to be run. Us
 catkin_make run_tests
 catkin_make run_tests_pancake_pkg_nosetests_test
 ```
+
+## Future Works
+For future works our team would be interested in further developing the autonomous functionality of the robot. This could include training the system's vision to be more precise, obtaining more information about the environment from the RealSense camera, improving the trajectory planning and execution of the robot's motion planner, etc. Our team would also like to explore increasing the capability of the robot by developing software to command it to pick up other objects (like whisks, plates, etc.) and perform other tasks like mixing batter, adding non-liquid ingredients, and creating different pancake shapes. Lastly, a more complicated development would be to train the robot to flip a pancake with just a fry pan and without the use of a spatula. This would require a more intensive approach that may include machine learning and a deeper understanding of the system's dynamics.
