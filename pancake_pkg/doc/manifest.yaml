@@ -1,0 +1,32 @@
+actions: []
+authors: ''
+brief: ''
+bugtracker: ''
+depends:
+- moveit_commander
+- geometry_msgs
+- joint_state_publisher
+- robot_state_publisher
+- std_msgs
+- panda_moveit_config
+- message_runtime
+- controller_manager
+- visualization_msgs
+- franka_control
+- tf2_ros
+- rospy
+- apriltag_ros
+- moveit_msgs
+- rostest
+- joint_state_publisher_gui
+- python-catkin-pkg
+- catkin
+description: Flips them pancakes
+license: Apache License 2.0
+maintainers: Sarah Ziselman <SarahZiselman2020@u.northwestern.edu>, Andru Liu <andruliu2022@u.northwestern.edu>,
+  James Avtges <jamesavtges2022@u.northwestern.edu>
+msgs: []
+package_type: package
+repo_url: ''
+srvs: []
+url: ''

@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+"""
+This node is responsible for adjusting the torque and force threshold parameters on the Franka Emika Panda robot,
+this adjusts the reflexive response of the robot during execution of cartesian paths.
+
+CLIENTS:
+    + /franka_control/set_force_torque_collision_behavior (SetForceTorqueCollisionBehavior) ~ adjusts the threshold parameters of the robot
+"""
+
 from pancake_pkg.transform import TransformToRobot
 import numpy as np
 import rospy
@@ -28,15 +36,10 @@ class cartesian_control:
         ## Cartesian Threshold ##
         lowerf = rospy.get_param("/franka_control/collision_config/lower_force_thresholds_nominal")
         logdebug("got first param")
-        # lowert = rospy.get_param("/franka_control/collision_config/lower_torque_thresholds_nominal")
         lowert = [39, 40, 40, 40, 40, 40, 40]
         force = [20, 20, 20, 20, 20, 20]
-        # lowertnew = [i=40 for i in lowert]
-        # rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
         upperf = rospy.get_param("/franka_control/collision_config/upper_force_thresholds_nominal")
         logdebug("got second param")
-        # uppert = rospy.get_param("/franka_control/collision_config/upper_torque_thresholds_nominal")
-        # uppertnew = [i=40 for i in uppert]
         rospy.set_param("/franka_control/collision_config/lower_torque_thresholds_nominal", lowert)
         logdebug("set first param")
         rospy.set_param("/franka_control/collision_config/upper_torque_thresholds_nominal", lowert)
