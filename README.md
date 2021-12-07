@@ -95,9 +95,9 @@ This command will launch the `pancake_control` and `pancake_vision` nodes and di
 ## Configuration
 Each of the three main functionalities of the project are implemented through a single ROS service `make_pancakes`. The first step is to pour batter onto the heated griddle. This part of the service will command the robot to grab the food storage bottle containing the mixed pancake batter, flip the bottle spout-side down above the griddle, squeeze the bottle for twelve seconds allowing for pancake batter to be released, then flip the bottle spout-side up and place it back at its starting location.
 
-The robot will then wait for a signal to flip the pancake. Flip time is determined by computer vision counting the number of contours on the pancake and their rate of change. Once the number of bubbles are no longer increasing, the pancake is ready to be flipped. This part of the service will command the robot to grab the modified heat-proof spatula, maneuver it to get the pancake situated on the spatula, flip the pancake back onto the griddle, then move the robot to its home posiiton.
+The robot will then wait for a signal to flip the pancake. Flip time is determined by computer vision counting the number of contours on the pancake and their rate of change. Once the number of bubbles are no longer increasing, the pancake is ready to be flipped. This part of the service will command the robot to grab the modified heat-proof spatula, maneuver it to get the pancake situated on the spatula using a location determined by computer vision, flip the pancake back onto the griddle, then move the robot to its home posiiton.
 
-A 20 second wait time ensures the second side of the pancake is perfect cooked and ready to be handed off to the hungry user. The last part of the service will command the robot to maneuver the modified heat-proof spatula to get the pancake situated on the spatula, then lift it off of the griddle and flip it onto a user's plate.
+A 20 second wait time ensures the second side of the pancake is perfectly cooked and ready to be handed off to the hungry user. The last part of the service will command the robot to maneuver the modified heat-proof spatula to get the pancake situated on the spatula using a position determined by computer vision, then lift it off of the griddle and flip it onto a user's plate.
 
 Open a new terminal and run the following commands
 ```
@@ -113,7 +113,6 @@ This package also contains testing applications to ensure that ROS implementatio
 
 Use a terminal to run the following commands depending on the test to be run. Use the first to run all tests; however, ROS testing will required connection to the robot. Use the second command to run the Python package calculations.
 ```
-
 catkin_make run_tests
 catkin_make run_tests_pancake_pkg_nosetests_test
 ```
