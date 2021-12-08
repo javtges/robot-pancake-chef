@@ -131,6 +131,7 @@ rosservice call /make_pancakes
 Upon successful completion of all the services, the user will have delicious, robot-made pancakes courtesy of the Franka Emika Panda robot and team FLIP IT. 
 
 ![flip-3](pancake_pkg/img/flip-3.gif)
+**_NOTE:_** This video is x2.5 sped up
 
 ## Testing
 This package also contains testing applications to ensure that ROS implementation of the position of objects and the Python package pose calculations are correct. 
@@ -147,6 +148,5 @@ For future works our team would be interested in further developing the autonomo
 
 ![chocolate chips](pancake_pkg/img/chocolate_chips.GIF)
 **_NOTE:_** This video is x2.5 sped up
-
 
 *Chocolate chips must be placed in the center of the pancake while the batter is still pouring to avoid disrupting the computer vision!*
