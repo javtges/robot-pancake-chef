@@ -7,7 +7,8 @@ This repository contains software developed for ME 495 Embedded Systems in Robot
 The objective of this project is to command a Franka Emika Panda arm to pour pre-mixed pancake batter onto a griddle, flip the pancake using a modified spatula, and lift the pancake off the griddle onto a plate. This process is done entirely autonomously utilizing open-source computer vision and motion planning software packages.
 
 ![flip1](pancake_pkg/img/flip-1.gif)
-**_NOTE:_** This video is x2.5 sped up
+
+**_NOTE:_** This video is 2.5x speed
 
 The `pancake_pkg` package contains the following nodes:
 * `pancake_control` - This node is responsible for implementing the `MoveIt` motion planner on the Franka Emika Panda robot. It sends a series of commands to allow for path planning and execution in order to carry out the robot's desired functionality.
@@ -131,7 +132,8 @@ rosservice call /make_pancakes
 Upon successful completion of all the services, the user will have delicious, robot-made pancakes courtesy of the Franka Emika Panda robot and team FLIP IT. 
 
 ![flip-3](pancake_pkg/img/flip-3.gif)
-**_NOTE:_** This video is x2.5 sped up
+
+**_NOTE:_** This video is 2.5x speed
 
 ## Testing
 This package also contains testing applications to ensure that ROS implementation of the position of objects and the Python package pose calculations are correct. 
@@ -147,6 +149,7 @@ For future works our team would be interested in further developing the autonomo
 
 
 ![chocolate chips](pancake_pkg/img/chocolate_chips.GIF)
-**_NOTE:_** This video is x2.5 sped up
+
+**_NOTE:_** This video is 2.5x speed
 
 *Chocolate chips must be placed in the center of the pancake while the batter is still pouring to avoid disrupting the computer vision!*
